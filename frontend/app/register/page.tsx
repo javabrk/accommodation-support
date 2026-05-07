@@ -70,7 +70,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen flex" style={{ background: 'var(--page-bg)' }}>
 
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-teal-800 via-teal-900 to-slate-900 flex-col justify-between p-12 relative overflow-hidden">
