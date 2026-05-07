@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SupportHome — Interactive Preview</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: system-ui, sans-serif; background:#f8fafc; margin:0; }
+  .screen { display:none; }
+  .screen.active { display:flex; min-height:100vh; }
+  .badge { display:inline-flex;align-items:center;padding:2px 10px;border-radius:9999px;font-size:11px;font-weight:600; }
+  /* Modal overlay */
+  .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:16px; }
+  .modal-overlay.open { display:flex; }
+  .modal-box { background:#fff;border-radius:16px;width:100%;max-width:680px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2); }
+  .modal-header { display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #e5e7eb;flex-shrink:0; }
+  .modal-body { overflow-y:auto;padding:24px;flex:1; }
+  .modal-footer { padding:16px 24px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:10px;flex-shrink:0; }
+  .form-grid { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+  .form-group { display:flex;flex-direction:column;gap:5px; }
+  .form-group.full { grid-column:1/-1; }
+  label { font-size:12px;font-weight:600;color:#374151; }
+  input, select, textarea { border:1.5px solid #d1d5db;border-radius:8px;padding:9px 11px;font-size:13px;width:100%;box-sizing:border-box;outline:none; }
+  input:focus, select:focus, textarea:focus { border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+  .btn-primary { background:#2563eb;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer; }
+  .btn-primary:hover { background:#1d4ed8; }
+  .btn-teal { background:#0d9488;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer; }
+  .btn-secondary { background:#fff;color:#374151;border:1.5px solid #d1d5db;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:500;cursor:pointer; }
+  .btn-secondary:hover { background:#f9fafb; }
+  .toast { position:fixed;top:20px;right:20px;background:#111;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;transform:translateX(120%);transition:transform .3s; }
+  .toast.show { transform:translateX(0); }
+  .nav-strip { background:#1e3a8a;padding:10px 16px;position:sticky;top:0;z-index:100; display:flex;align-items:center;gap:6px;flex-wrap:wrap; }
+  .nav-btn { background:#2563eb;color:#fff;border:none;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer; }
+  .nav-btn.teal { background:#0d9488; }
+  .sidebar { width:240px;flex-shrink:0;display:flex;flex-direction:column; }
+  .sidebar-admin { background:#1e40af; }
+  .sidebar-client { background:#0f766e; }
+  .sidebar-logo { padding:22px 18px;border-bottom:1px solid rgba(255,255,255,.1); }
+  .sidebar-nav { padding:10px;flex:1; }
+  .sidebar-link { display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:8px;color:rgba(255,255,255,.7);font-size:13px;font-weight:500;cursor:pointer;margin-bottom:3px;text-decoration:none; }
+  .sidebar-link:hover { background:rgba(255,255,255,.1);color:#fff; }
+  .sidebar-link.active { background:rgba(255,255,255,.2);color:#fff; }
+  .sidebar-footer { padding:14px;border-top:1px solid rgba(255,255,255,.1); }
+  .main { flex:1;padding:28px 32px;overflow:auto; }
+  .page-header { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px; }
+  .stat-card { background:#fff;border-radius:12px;padding:18px;display:flex;align-items:center;gap:12px;border:1px solid #e5e7eb;box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .stat-icon { width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0; }
+  .card { background:#fff;border-radius:12px;border:1px solid #e5e7eb;box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  table { width:100%;border-collapse:collapse;font-size:13px; }
+  thead tr { background:#f9fafb; }
+  th { text-align:left;padding:10px 14px;color:#6b7280;font-weight:500;font-size:12px; }
+  td { padding:12px 14px;border-top:1px solid #f3f4f6;color:#374151; }
+  tr:hover td { background:#f9fafb; }
+  .prop-card { background:#fff;border-radius:12px;padding:18px;border:1px solid #e5e7eb;box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .ticket-card { background:#fff;border-radius:12px;padding:16px 20px;border:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:10px; }
+  .ticket-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.08); }
+  .filter-bar { background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:18px;display:flex;gap:10px;align-items:center;border:1px solid #e5e7eb;flex-wrap:wrap; }
+  .msg-bubble { max-width:70%;border-radius:12px;padding:12px 14px;font-size:13px; }
+  .msg-admin { background:#dbeafe;color:#1e3a8a;margin-left:auto; }
+  .msg-client { background:#f3f4f6;color:#111; }
+  .success { background:#dcfce7;color:#15803d; }
+  .warning { background:#fef9c3;color:#a16207; }
+  .danger  { background:#fee2e2;color:#b91c1c; }
+  .info    { background:#dbeafe;color:#1d4ed8; }
+  .gray    { background:#f3f4f6;color:#374151; }
+  .orange  { background:#fed7aa;color:#c2410c; }
+  .purple  { background:#ede9fe;color:#6d28d9; }
+</style>
+</head>
+<body>
+
+<!-- ── Navigation Strip ─────────────────────────────── -->
+<div class="nav-strip">
+  <span style="color:#93c5fd;font-size:11px;font-weight:700;margin-right:4px">ADMIN:</span>
+  <button class="nav-btn" onclick="showScreen('login')">🔐 Login</button>
+  <button class="nav-btn" onclick="showScreen('dash')">📊 Dashboard</button>
+  <button class="nav-btn" onclick="showScreen('clients')">👥 Clients</button>
+  <button class="nav-btn" onclick="showScreen('properties')">🏠 Properties</button>
+  <button class="nav-btn" onclick="showScreen('tickets')">🎫 Tickets</button>
+  <button class="nav-btn" onclick="showScreen('reports')">📄 Reports</button>
+  <button class="nav-btn" onclick="showScreen('payments')">💳 Payments</button>
+  <span style="color:#60a5fa;margin:0 6px">│</span>
+  <span style="color:#99f6e4;font-size:11px;font-weight:700;margin-right:4px">CLIENT:</span>
+  <button class="nav-btn teal" onclick="showScreen('cdash')">🏡 Dashboard</button>
+  <button class="nav-btn teal" onclick="showScreen('ctickets')">🎫 Tickets</button>
+  <button class="nav-btn teal" onclick="showScreen('cnew')">➕ New Request</button>
+  <button class="nav-btn teal" onclick="showScreen('cprofile')">👤 Profile</button>
+</div>
+
+<!-- ════════════════════════════════════════════
+     LOGIN
+════════════════════════════════════════════ -->
+<div id="login" class="screen active" style="background:linear-gradient(135deg,#1d4ed8,#1e3a8a,#0f766e);align-items:center;justify-content:center;padding:20px;">
+  <div style="width:100%;max-width:420px">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="background:#fff;width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;box-shadow:0 4px 20px rgba(0,0,0,.2);font-size:30px">🏠</div>
+      <h1 style="color:#fff;font-size:26px;font-weight:700;margin:0">SupportHome</h1>
+      <p style="color:#93c5fd;margin:4px 0 0;font-size:13px">Social Support Accommodation Portal</p>
+    </div>
+    <div class="card" style="padding:28px">
+      <h2 style="margin:0 0 20px;font-size:17px;font-weight:600;color:#111">Sign in to your account</h2>
+      <div style="margin-bottom:14px">
+        <label>Email address</label>
+        <input id="loginEmail" value="admin@accommodation.com" style="margin-top:5px"/>
+      </div>
+      <div style="margin-bottom:22px">
+        <label>Password</label>
+        <input id="loginPass" type="password" value="password" style="margin-top:5px"/>
+      </div>
+      <button class="btn-primary" style="width:100%;padding:11px;font-size:14px" onclick="doLogin()">Sign in →</button>
+      <div style="margin-top:16px;background:#eff6ff;border-radius:8px;padding:12px;font-size:12px;color:#1d4ed8">
+        <b>Demo:</b> admin@accommodation.com / password<br>
+        <span style="color:#3b82f6">Clients receive login details from staff</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ADMIN DASHBOARD
+════════════════════════════════════════════ -->
+<div id="dash" class="screen">
+  <div class="sidebar sidebar-admin">
+    <div class="sidebar-logo"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:22px">🏠</span><div><p style="color:#fff;font-weight:700;font-size:15px;margin:0">SupportHome</p><p style="color:#93c5fd;font-size:10px;margin:0">Admin Portal</p></div></div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-link active" onclick="showScreen('dash')">📊 Dashboard</div>
+      <div class="sidebar-link" onclick="showScreen('clients')">👥 Clients</div>
+      <div class="sidebar-link" onclick="showScreen('properties')">🏠 Properties</div>
+      <div class="sidebar-link" onclick="showScreen('tickets')">🎫 Tickets</div>
+      <div class="sidebar-link" onclick="showScreen('reports')">📄 Reports</div>
+      <div class="sidebar-link" onclick="showScreen('payments')">💳 Payments</div>
+      <div class="sidebar-link" onclick="showScreen('checklists')">🔍 Checklists</div>
+    </nav>
+    <div class="sidebar-footer"><p style="color:#fff;font-size:12px;font-weight:500;margin:0">System Admin</p><p style="color:#93c5fd;font-size:11px;margin:2px 0 8px">admin@accommodation.com</p><span style="color:#93c5fd;font-size:11px;cursor:pointer" onclick="showScreen('login')">⬅ Sign out</span></div>
+  </div>
+  <div class="main">
+    <div class="page-header"><div><h1 style="font-size:21px;font-weight:700;color:#111;margin:0">Dashboard</h1><p style="color:#6b7280;font-size:12px;margin:4px 0 0">Overview of your accommodation services</p></div></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
+      <div class="stat-card"><div class="stat-icon" style="background:#dbeafe">👥</div><div><p style="font-size:22px;font-weight:700;color:#111;margin:0" id="sc1">24</p><p style="font-size:11px;color:#6b7280;margin:0">Active Clients</p></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#ccfbf1">🏠</div><div><p style="font-size:22px;font-weight:700;color:#111;margin:0" id="sc2">8</p><p style="font-size:11px;color:#6b7280;margin:0">Available Properties</p></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#fef9c3">🎫</div><div><p style="font-size:22px;font-weight:700;color:#111;margin:0" id="sc3">12</p><p style="font-size:11px;color:#6b7280;margin:0">Active Tickets</p></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#fee2e2">⚠️</div><div><p style="font-size:22px;font-weight:700;color:#111;margin:0" id="sc4">5</p><p style="font-size:11px;color:#6b7280;margin:0">Open Tickets</p></div></div>
+    </div>
+    <div class="card">
+      <div style="padding:14px 18px;border-bottom:1px solid #f3f4f6"><b style="font-size:14px">Recent Tickets</b></div>
+      <table><thead><tr><th>Subject</th><th>Client</th><th>Priority</th><th>Status</th><th>Date</th></tr></thead>
+      <tbody>
+        <tr><td><b>Leaking pipe in bathroom</b></td><td>Sarah Mitchell</td><td><span class="badge danger">Urgent</span></td><td><span class="badge info">Open</span></td><td style="color:#9ca3af">06 May 2025</td></tr>
+        <tr><td><b>Request for financial assistance</b></td><td>James Okafor</td><td><span class="badge orange">High</span></td><td><span class="badge warning">In Progress</span></td><td style="color:#9ca3af">05 May 2025</td></tr>
+        <tr><td><b>Key replacement needed</b></td><td>Emma Clarke</td><td><span class="badge info">Medium</span></td><td><span class="badge info">Open</span></td><td style="color:#9ca3af">04 May 2025</td></tr>
+        <tr><td><b>PIP assessment support</b></td><td>Tony Nguyen</td><td><span class="badge gray">Low</span></td><td><span class="badge success">Resolved</span></td><td style="color:#9ca3af">02 May 2025</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ADMIN CLIENTS
+════════════════════════════════════════════ -->
+<div id="clients" class="screen">
+  <div class="sidebar sidebar-admin">
+    <div class="sidebar-logo"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:22px">🏠</span><div><p style="color:#fff;font-weight:700;font-size:15px;margin:0">SupportHome</p><p style="color:#93c5fd;font-size:10px;margin:0">Admin Portal</p></div></div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-link" onclick="showScreen('dash')">📊 Dashboard</div>
+      <div class="sidebar-link active" onclick="showScreen('clients')">👥 Clients</div>
+      <div class="sidebar-link" onclick="showScreen('properties')">🏠 Properties</div>
+      <div class="sidebar-link" onclick="showScreen('tickets')">🎫 Tickets</div>
+      <div class="sidebar-link" onclick="showScreen('reports')">📄 Reports</div>
+      <div class="sidebar-link" onclick="showScreen('payments')">💳 Payments</div>
+      <div class="sidebar-link" onclick="showScreen('checklists')">🔍 Checklists</div>
+    </nav>
+    <div class="sidebar-footer"><span style="color:#93c5fd;font-size:11px;cursor:pointer" onclick="showScreen('login')">⬅ Sign out</span></div>
+  </div>
+  <div class="main">
+    <div class="page-header">
+      <div><h1 style="font-size:21px;font-weight:700;color:#111;margin:0">Clients</h1><p style="color:#6b7280;font-size:12px;margin:4px 0 0" id="clientCount">5 records</p></div>
+      <button class="btn-primary" onclick="openModal('addClientModal')">+ Add Client</button>
+    </div>
+    <div class="filter-bar">
+      <input placeholder="🔍 Search name or email…" style="flex:1;min-width:180px" oninput="filterClients(this.value)"/>
+      <select style="width:140px" onchange="filterClientStatus(this.value)">
+        <option value="">All statuses</option>
+        <option value="Active">Active</option>
+        <option value="Pending">Pending</option>
+        <option value="Inactive">Inactive</option>
+        <option value="Exited">Exited</option>
+      </select>
+    </div>
+    <div class="card" style="overflow:hidden">
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>NHS No.</th><th>Property</th><th>Status</th><th></th></tr></thead>
+        <tbody id="clientTableBody">
+          <tr data-name="Sarah Mitchell" data-status="Active"><td><b>Sarah Mitchell</b></td><td>sarah.m@email.com</td><td>07712 345 678</td><td>485 123 4567</td><td>14 Ashdown Crescent, Manchester</td><td><span class="badge success">Active</span></td><td><button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openEditClient('Sarah Mitchell','sarah.m@email.com','07712 345 678','485 123 4567','Active')">✏️ Edit</button></td></tr>
+          <tr data-name="James Okafor" data-status="Active"><td><b>James Okafor</b></td><td>james.o@email.com</td><td>07823 456 789</td><td>—</td><td>Flat 7, 42 Victoria Rd, London</td><td><span class="badge success">Active</span></td><td><button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openEditClient('James Okafor','james.o@email.com','07823 456 789','','Active')">✏️ Edit</button></td></tr>
+          <tr data-name="Emma Clarke" data-status="Pending"><td><b>Emma Clarke</b></td><td>emma.c@email.com</td><td>07934 567 890</td><td>485 987 6543</td><td>33 Birchwood Drive, Birmingham</td><td><span class="badge warning">Pending</span></td><td><button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openEditClient('Emma Clarke','emma.c@email.com','07934 567 890','485 987 6543','Pending')">✏️ Edit</button></td></tr>
+          <tr data-name="Tony Nguyen" data-status="Active"><td><b>Tony Nguyen</b></td><td>tony.n@email.com</td><td>07445 678 901</td><td>485 555 0012</td><td>—</td><td><span class="badge success">Active</span></td><td><button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openEditClient('Tony Nguyen','tony.n@email.com','07445 678 901','485 555 0012','Active')">✏️ Edit</button></td></tr>
+          <tr data-name="Priya Sharma" data-status="Inactive"><td><b>Priya Sharma</b></td><td>priya.s@email.com</td><td>07556 789 012</td><td>—</td><td>22 Church St, Liverpool</td><td><span class="badge danger">Inactive</span></td><td><button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openEditClient('Priya Sharma','priya.s@email.com','07556 789 012','','Inactive')">✏️ Edit</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ADMIN PROPERTIES
+════════════════════════════════════════════ -->
+<div id="properties" class="screen">
+  <div class="sidebar sidebar-admin">
+    <div class="sidebar-logo"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:22px">🏠</span><div><p style="color:#fff;font-weight:700;font-size:15px;margin:0">SupportHome</p><p style="color:#93c5fd;font-size:10px;margin:0">Admin Portal</p></div></div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-link" onclick="showScreen('dash')">📊 Dashboard</div>
+      <div class="sidebar-link" onclick="showScreen('clients')">👥 Clients</div>
+      <div class="sidebar-link active" onclick="showScreen('properties')">🏠 Properties</div>
+      <div class="sidebar-link" onclick="showScreen('tickets')">🎫 Tickets</div>
+      <div class="sidebar-link" onclick="showScreen('reports')">📄 Reports</div>
+      <div class="sidebar-link" onclick="showScreen('payments')">💳 Payments</div>
+      <div class="sidebar-link" onclick="showScreen('checklists')">🔍 Checklists</div>
+    </nav>
+    <div class="sidebar-footer"><span style="color:#93c5fd;font-size:11px;cursor:pointer" onclick="showScreen('login')">⬅ Sign out</span></div>
+  </div>
+  <div class="main">
+    <div class="page-header">
+      <div><h1 style="font-size:21px;font-weight:700;color:#111;margin:0">Properties</h1><p style="color:#6b7280;font-size:12px;margin:4px 0 0" id="propCount">3 properties</p></div>
+      <button class="btn-primary" onclick="openModal('addPropertyModal')">+ Add Property</button>
+    </div>
+    <div id="propertyGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+      <div class="prop-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:10px"><div style="background:#dbeafe;width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px">🏠</div><div><p style="font-weight:600;font-size:13px;color:#111;margin:0">14 Ashdown Crescent</p><p style="font-size:11px;color:#9ca3af;margin:0">Manchester, M4 1LT</p></div></div>
+          <span class="badge info">Occupied</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);text-align:center;background:#f9fafb;border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;color:#6b7280">
+          <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">3</p>Beds</div>
+          <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">1</p>Baths</div>
+          <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">1/2</p>Occupied</div>
+        </div>
+        <p style="font-size:13px;font-weight:500;color:#374151;margin:0 0 12px">£1,100/mo</p>
+        <button class="btn-secondary" style="width:100%;font-size:12px;padding:7px" onclick="openEditProperty('14 Ashdown Crescent','Manchester','Greater Manchester','M4 1LT','terraced','3','1','2','Occupied','1100','Terraced support house for residents with complex needs')">✏️ Edit Property</button>
+      </div>
+      <div class="prop-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:10px"><div style="background:#dbeafe;width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px">🏢</div><div><p style="font-weight:600;font-size:13px;color:#111;margin:0">Flat 7, 42 Victoria Rd</p><p style="font-size:11px;color:#9ca3af;margin:0">London, E3 4NQ</p></div></div>
+          <span class="badge success">Available</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);text-align:center;background:#f9fafb;border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;color:#6b7280">
+          <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">1</p>Beds</div>
+          <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">1</p>Baths</div>
+          <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">0/1</p>Occupied</div>
+        </div>
+        <p style="font-size:13px;font-weight:500;color:#374151;margin:0 0 12px">£1,050/mo</p>
+        <button class="btn-secondary" style="width:100%;font-size:12px;padding:7px" onclick="openEditProperty('Flat 7, 42 Victoria Road','London','Greater London','E3 4NQ','flat','1','1','1','Available','1050','Self-contained flat in East London')">✏️ Edit Property</button>
+      </div>
+      <div class="prop-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:10px"><div style="background:#dbeafe;width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px">🏡</div><div><p style="font-weight:600;font-size:13px;color:#111;margin:0">33 Birchwood Drive</p><p style="font-size:11px;color:#9ca3af;margin:0">Birmingham, B15 2RT</p></div></div>
+          <span class="badge orange">Maintenance</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);text-align:center;background:#f9fafb;border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;color:#6b7280">
+          <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">4</p>Beds</div>
+          <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">2</p>Baths</div>
+          <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">2/4</p>Occupied</div>
+        </div>
+        <p style="font-size:13px;font-weight:500;color:#374151;margin:0 0 12px">£1,400/mo</p>
+        <button class="btn-secondary" style="width:100%;font-size:12px;padding:7px" onclick="openEditProperty('33 Birchwood Drive','Birmingham','West Midlands','B15 2RT','semi-detached','4','2','4','Maintenance','1400','Semi-detached house — under planned maintenance')">✏️ Edit Property</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ADMIN TICKETS
+════════════════════════════════════════════ -->
+<div id="tickets" class="screen">
+  <div class="sidebar sidebar-admin">
+    <div class="sidebar-logo"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:22px">🏠</span><div><p style="color:#fff;font-weight:700;font-size:15px;margin:0">SupportHome</p><p style="color:#93c5fd;font-size:10px;margin:0">Admin Portal</p></div></div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-link" onclick="showScreen('dash')">📊 Dashboard</div>
+      <div class="sidebar-link" onclick="showScreen('clients')">👥 Clients</div>
+      <div class="sidebar-link" onclick="showScreen('properties')">🏠 Properties</div>
+      <div class="sidebar-link active" onclick="showScreen('tickets')">🎫 Tickets</div>
+      <div class="sidebar-link" onclick="showScreen('reports')">📄 Reports</div>
+      <div class="sidebar-link" onclick="showScreen('payments')">💳 Payments</div>
+      <div class="sidebar-link" onclick="showScreen('checklists')">🔍 Checklists</div>
+    </nav>
+    <div class="sidebar-footer"><span style="color:#93c5fd;font-size:11px;cursor:pointer" onclick="showScreen('login')">⬅ Sign out</span></div>
+  </div>
+  <div class="main">
+    <div class="page-header"><div><h1 style="font-size:21px;font-weight:700;color:#111;margin:0">Support Tickets</h1><p style="color:#6b7280;font-size:12px;margin:4px 0 0">4 tickets</p></div></div>
+    <div class="filter-bar">
+      <span style="font-size:12px;color:#9ca3af">⚙️ Filter:</span>
+      <select style="flex:1" onchange="filterTickets()"><option value="">All statuses</option><option>Open</option><option>In Progress</option><option>Resolved</option><option>Closed</option></select>
+      <select style="flex:1" onchange="filterTickets()"><option value="">All priorities</option><option>Urgent</option><option>High</option><option>Medium</option><option>Low</option></select>
+      <select style="flex:1" onchange="filterTickets()"><option value="">All categories</option><option>Maintenance</option><option>Financial</option><option>Support</option><option>General</option></select>
+    </div>
+    <div class="card" style="overflow:hidden">
+      <table>
+        <thead><tr><th>Subject</th><th>Client</th><th>Category</th><th>Priority</th><th>Status</th><th>Date</th><th></th></tr></thead>
+        <tbody id="adminTicketBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ADMIN REPORTS
+════════════════════════════════════════════ -->
+<div id="reports" class="screen">
+  <div class="sidebar sidebar-admin">
+    <div class="sidebar-logo"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:22px">🏠</span><div><p style="color:#fff;font-weight:700;font-size:15px;margin:0">SupportHome</p><p style="color:#93c5fd;font-size:10px;margin:0">Admin Portal</p></div></div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-link" onclick="showScreen('dash')">📊 Dashboard</div>
+      <div class="sidebar-link" onclick="showScreen('clients')">👥 Clients</div>
+      <div class="sidebar-link" onclick="showScreen('properties')">🏠 Properties</div>
+      <div class="sidebar-link" onclick="showScreen('tickets')">🎫 Tickets</div>
+      <div class="sidebar-link active" onclick="showScreen('reports')">📄 Reports</div>
+      <div class="sidebar-link" onclick="showScreen('payments')">💳 Payments</div>
+      <div class="sidebar-link" onclick="showScreen('checklists')">🔍 Checklists</div>
+    </nav>
+    <div class="sidebar-footer"><span style="color:#93c5fd;font-size:11px;cursor:pointer" onclick="showScreen('login')">⬅ Sign out</span></div>
+  </div>
+  <div class="main">
+    <div class="page-header">
+      <div><h1 style="font-size:21px;font-weight:700;color:#111;margin:0">Reports</h1><p style="color:#6b7280;font-size:12px;margin:4px 0 0" id="reportCount">3 reports</p></div>
+      <button class="btn-primary" onclick="openModal('addReportModal')">+ New Report</button>
+    </div>
+    <div class="card" style="overflow:hidden">
+      <table>
+        <thead><tr><th>Title</th><th>Client</th><th>Type</th><th>Author</th><th>Date</th><th></th></tr></thead>
+        <tbody id="reportTableBody">
+          <tr><td><b>📄 Monthly case review — Sarah M.</b></td><td>Sarah Mitchell</td><td>Case Note</td><td>J. Smith</td><td style="color:#9ca3af">05 May 2025</td><td><button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openEditReport('Monthly case review — Sarah M.','Sarah Mitchell','case_note','This is the monthly case review for Sarah Mitchell. Sarah has been progressing well in her accommodation. Key achievements this month include regular attendance at support appointments and maintaining her property responsibly.')">✏️ Edit</button></td></tr>
+          <tr><td><b>📄 Incident: Altercation at 88 Pitt St</b> 🔒</td><td>Emma Clarke</td><td>Incident</td><td>M. Lee</td><td style="color:#9ca3af">03 May 2025</td><td><button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openEditReport('Incident: Altercation at 88 Pitt St','Emma Clarke','incident','A verbal altercation occurred between two residents at 88 Pitt Street on the evening of 2 May 2025. Staff were notified and attended the property. Both parties were spoken to separately and the situation was de-escalated.')">✏️ Edit</button></td></tr>
+          <tr><td><b>📄 Progress update — James O.</b></td><td>James Okafor</td><td>Progress</td><td>J. Smith</td><td style="color:#9ca3af">01 May 2025</td><td><button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openEditReport('Progress update — James O.','James Okafor','progress','James continues to make good progress. He has secured part-time employment this month which is a significant milestone. Financial counselling sessions are ongoing.')">✏️ Edit</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     CLIENT DASHBOARD
+════════════════════════════════════════════ -->
+<div id="cdash" class="screen">
+  <div class="sidebar sidebar-client">
+    <div class="sidebar-logo"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:22px">🏠</span><div><p style="color:#fff;font-weight:700;font-size:15px;margin:0">SupportHome</p><p style="color:#99f6e4;font-size:10px;margin:0">Client Portal</p></div></div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-link active" onclick="showScreen('cdash')">📊 Dashboard</div>
+      <div class="sidebar-link" onclick="showScreen('ctickets')">🎫 My Tickets</div>
+      <div class="sidebar-link" onclick="showScreen('cprofile')">👤 My Profile</div>
+    </nav>
+    <div class="sidebar-footer"><p style="color:#fff;font-size:12px;font-weight:500;margin:0">Sarah Mitchell</p><p style="color:#99f6e4;font-size:11px;margin:2px 0 8px">sarah.m@email.com</p><span style="color:#99f6e4;font-size:11px;cursor:pointer" onclick="showScreen('login')">⬅ Sign out</span></div>
+  </div>
+  <div class="main">
+    <h1 style="font-size:21px;font-weight:700;color:#111;margin:0 0 4px">Welcome, Sarah!</h1>
+    <p style="color:#6b7280;font-size:12px;margin:0 0 24px">Here's your accommodation support summary</p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px">
+      <div class="stat-card"><div class="stat-icon" style="background:#fef9c3">⚠️</div><div><p style="font-size:22px;font-weight:700;color:#111;margin:0">2</p><p style="font-size:11px;color:#6b7280;margin:0">Open tickets</p></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#ccfbf1">📍</div><div><p style="font-size:14px;font-weight:600;color:#111;margin:0">14 Ashdown Crescent</p><p style="font-size:11px;color:#6b7280;margin:0">Current property</p></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#dcfce7">✅</div><div><span class="badge success">Active</span><p style="font-size:11px;color:#6b7280;margin:4px 0 0">Account status</p></div></div>
+    </div>
+    <div class="card" style="padding:20px;margin-bottom:20px;border-left:4px solid #14b8a6">
+      <p style="font-size:13px;font-weight:600;color:#111;margin:0 0 10px">📍 Your Property</p>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:12px">
+        <div><p style="color:#9ca3af;margin:0">Address</p><p style="font-weight:500;color:#111;margin:2px 0 0">14 Ashdown Crescent</p></div>
+        <div><p style="color:#9ca3af;margin:0">City</p><p style="font-weight:500;color:#111;margin:2px 0 0">Manchester, M4 1LT</p></div>
+        <div><p style="color:#9ca3af;margin:0">Type</p><p style="font-weight:500;color:#111;margin:2px 0 0">House</p></div>
+        <div><p style="color:#9ca3af;margin:0">Move-in</p><p style="font-weight:500;color:#111;margin:2px 0 0">15 Jan 2025</p></div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="padding:14px 18px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
+        <b style="font-size:14px">Recent Tickets</b>
+        <button class="btn-teal" style="padding:5px 12px;font-size:12px" onclick="showScreen('cnew')">+ New Ticket</button>
+      </div>
+      <div class="ticket-card" onclick="showScreen('ctickets')"><div><p style="font-weight:500;font-size:13px;color:#111;margin:0">Leaking pipe in bathroom</p><p style="font-size:11px;color:#9ca3af;margin:3px 0 0">06 May 2025</p></div><div style="display:flex;gap:6px"><span class="badge danger">Urgent</span><span class="badge info">Open</span></div></div>
+      <div class="ticket-card" onclick="showScreen('ctickets')"><div><p style="font-weight:500;font-size:13px;color:#111;margin:0">General enquiry about rent</p><p style="font-size:11px;color:#9ca3af;margin:3px 0 0">01 May 2025</p></div><div style="display:flex;gap:6px"><span class="badge info">Medium</span><span class="badge warning">In Progress</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     CLIENT TICKETS
+════════════════════════════════════════════ -->
+<div id="ctickets" class="screen">
+  <div class="sidebar sidebar-client">
+    <div class="sidebar-logo"><div style="display:flex;align-items:center;gap:8px"><span>🏠</span><div><p style="color:#fff;font-weight:700;font-size:15px;margin:0">SupportHome</p><p style="color:#99f6e4;font-size:10px;margin:0">Client Portal</p></div></div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-link" onclick="showScreen('cdash')">📊 Dashboard</div>
+      <div class="sidebar-link active" onclick="showScreen('ctickets')">🎫 My Tickets</div>
+      <div class="sidebar-link" onclick="showScreen('cprofile')">👤 My Profile</div>
+    </nav>
+    <div class="sidebar-footer"><span style="color:#99f6e4;font-size:11px;cursor:pointer" onclick="showScreen('login')">⬅ Sign out</span></div>
+  </div>
+  <div class="main">
+    <div class="page-header"><div><h1 style="font-size:21px;font-weight:700;color:#111;margin:0">My Tickets</h1><p style="color:#6b7280;font-size:12px;margin:4px 0 0">Track your support requests</p></div><button class="btn-teal" onclick="showScreen('cnew')">+ New Request</button></div>
+    <div class="filter-bar">
+      <select style="width:180px" onchange="filterClientTicketList(this.value)">
+        <option value="">All tickets</option>
+        <option value="Open">Open</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Resolved">Resolved</option>
+        <option value="Closed">Closed</option>
+      </select>
+    </div>
+    <div id="clientTicketList"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     CLIENT NEW TICKET
+════════════════════════════════════════════ -->
+<div id="cnew" class="screen">
+  <div class="sidebar sidebar-client">
+    <div class="sidebar-logo"><div style="display:flex;align-items:center;gap:8px"><span>🏠</span><div><p style="color:#fff;font-weight:700;font-size:15px;margin:0">SupportHome</p><p style="color:#99f6e4;font-size:10px;margin:0">Client Portal</p></div></div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-link" onclick="showScreen('cdash')">📊 Dashboard</div>
+      <div class="sidebar-link active" onclick="showScreen('ctickets')">🎫 My Tickets</div>
+      <div class="sidebar-link" onclick="showScreen('cprofile')">👤 My Profile</div>
+    </nav>
+    <div class="sidebar-footer"><span style="color:#99f6e4;font-size:11px;cursor:pointer" onclick="showScreen('login')">⬅ Sign out</span></div>
+  </div>
+  <div class="main" style="max-width:720px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px">
+      <span style="color:#9ca3af;cursor:pointer;font-size:20px" onclick="showScreen('ctickets')">←</span>
+      <div><h1 style="font-size:21px;font-weight:700;color:#111;margin:0">Submit a Request</h1><p style="color:#6b7280;font-size:12px;margin:4px 0 0">We'll get back to you as soon as possible</p></div>
+    </div>
+    <div class="card" style="padding:26px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#111;margin-bottom:12px">Category *</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px" id="catGrid">
+        <div class="cat-btn" data-val="maintenance" onclick="selectCat(this)" style="border:2px solid #e5e7eb;border-radius:10px;padding:12px;cursor:pointer"><p style="font-weight:600;font-size:13px;margin:0 0 2px">🔧 Maintenance</p><p style="font-size:11px;color:#6b7280;margin:0">Repairs, damage, property issues</p></div>
+        <div class="cat-btn" data-val="financial" onclick="selectCat(this)" style="border:2px solid #e5e7eb;border-radius:10px;padding:12px;cursor:pointer"><p style="font-weight:600;font-size:13px;margin:0 0 2px">💰 Financial</p><p style="font-size:11px;color:#6b7280;margin:0">Rent, payments, financial assistance</p></div>
+        <div class="cat-btn" data-val="support" onclick="selectCat(this)" style="border:2px solid #e5e7eb;border-radius:10px;padding:12px;cursor:pointer"><p style="font-weight:600;font-size:13px;margin:0 0 2px">🤝 Support</p><p style="font-size:11px;color:#6b7280;margin:0">Personal support or wellbeing</p></div>
+        <div class="cat-btn" data-val="complaint" onclick="selectCat(this)" style="border:2px solid #e5e7eb;border-radius:10px;padding:12px;cursor:pointer"><p style="font-weight:600;font-size:13px;margin:0 0 2px">📢 Complaint</p><p style="font-size:11px;color:#6b7280;margin:0">Formal complaint or concern</p></div>
+        <div class="cat-btn" data-val="general" onclick="selectCat(this)" style="border:2px solid #e5e7eb;border-radius:10px;padding:12px;cursor:pointer"><p style="font-weight:600;font-size:13px;margin:0 0 2px">💬 General</p><p style="font-size:11px;color:#6b7280;margin:0">General enquiry or information</p></div>
+        <div class="cat-btn" data-val="emergency" onclick="selectCat(this)" style="border:2px solid #e5e7eb;border-radius:10px;padding:12px;cursor:pointer"><p style="font-weight:600;font-size:13px;margin:0 0 2px">🚨 Emergency</p><p style="font-size:11px;color:#6b7280;margin:0">Urgent safety or crisis</p></div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px"><label>Subject *</label><input id="ticketTitle" placeholder="Brief summary of your request" style="margin-top:5px"/></div>
+      <div class="form-group" style="margin-bottom:20px"><label>Details *</label><textarea id="ticketDesc" rows="5" placeholder="Describe your request in detail…" style="margin-top:5px;resize:vertical"></textarea></div>
+      <div style="margin-bottom:22px">
+        <label style="display:block;font-size:13px;font-weight:600;color:#111;margin-bottom:10px">Priority</label>
+        <div style="display:flex;gap:8px">
+          <span class="pri-btn" data-val="low" onclick="selectPri(this)" style="padding:6px 16px;border-radius:9999px;font-size:12px;font-weight:600;border:2px solid #e5e7eb;cursor:pointer;color:#6b7280">Low</span>
+          <span class="pri-btn selected" data-val="medium" onclick="selectPri(this)" style="padding:6px 16px;border-radius:9999px;font-size:12px;font-weight:600;border:2px solid #2563eb;background:#dbeafe;color:#1d4ed8;cursor:pointer">Medium</span>
+          <span class="pri-btn" data-val="high" onclick="selectPri(this)" style="padding:6px 16px;border-radius:9999px;font-size:12px;font-weight:600;border:2px solid #e5e7eb;cursor:pointer;color:#6b7280">High</span>
+          <span class="pri-btn" data-val="urgent" onclick="selectPri(this)" style="padding:6px 16px;border-radius:9999px;font-size:12px;font-weight:600;border:2px solid #e5e7eb;cursor:pointer;color:#6b7280">Urgent</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px">
+        <button class="btn-secondary" onclick="showScreen('ctickets')">Cancel</button>
+        <button class="btn-teal" onclick="submitTicket()">📨 Submit Request</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     CLIENT PROFILE
+════════════════════════════════════════════ -->
+<div id="cprofile" class="screen">
+  <div class="sidebar sidebar-client">
+    <div class="sidebar-logo"><div style="display:flex;align-items:center;gap:8px"><span>🏠</span><div><p style="color:#fff;font-weight:700;font-size:15px;margin:0">SupportHome</p><p style="color:#99f6e4;font-size:10px;margin:0">Client Portal</p></div></div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-link" onclick="showScreen('cdash')">📊 Dashboard</div>
+      <div class="sidebar-link" onclick="showScreen('ctickets')">🎫 My Tickets</div>
+      <div class="sidebar-link active" onclick="showScreen('cprofile')">👤 My Profile</div>
+    </nav>
+    <div class="sidebar-footer"><span style="color:#99f6e4;font-size:11px;cursor:pointer" onclick="showScreen('login')">⬅ Sign out</span></div>
+  </div>
+  <div class="main" style="max-width:680px">
+    <div class="page-header">
+      <div><h1 style="font-size:21px;font-weight:700;color:#111;margin:0">My Profile</h1><p style="color:#6b7280;font-size:12px;margin:4px 0 0">Your personal information</p></div>
+      <button class="btn-secondary" onclick="openModal('editProfileModal')">✏️ Edit</button>
+    </div>
+    <div class="card" style="padding:18px;margin-bottom:18px;border-left:4px solid #14b8a6">
+      <p style="font-size:13px;font-weight:600;margin:0 0 8px">📍 Current Property</p>
+      <p style="font-size:14px;font-weight:600;color:#111;margin:0">14 Ashdown Crescent, Manchester, M4 1LT</p>
+      <div style="display:flex;gap:12px;margin-top:6px;font-size:11px;color:#9ca3af"><span>Terraced House</span><span>3 bed · 1 bath</span><span>Since Jan 2025</span></div>
+    </div>
+    <div class="card" style="padding:22px">
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;font-size:13px;margin-bottom:20px">
+        <div><p style="color:#9ca3af;font-size:10px;text-transform:uppercase;font-weight:700;margin:0 0 3px">First Name</p><p style="color:#111;font-weight:500;margin:0" id="pfFirstName">Sarah</p></div>
+        <div><p style="color:#9ca3af;font-size:10px;text-transform:uppercase;font-weight:700;margin:0 0 3px">Last Name</p><p style="color:#111;font-weight:500;margin:0" id="pfLastName">Mitchell</p></div>
+        <div><p style="color:#9ca3af;font-size:10px;text-transform:uppercase;font-weight:700;margin:0 0 3px">Email</p><p style="color:#111;font-weight:500;margin:0">sarah.m@email.com</p></div>
+        <div><p style="color:#9ca3af;font-size:10px;text-transform:uppercase;font-weight:700;margin:0 0 3px">Phone</p><p style="color:#111;font-weight:500;margin:0" id="pfPhone">07712 345 678</p></div>
+        <div><p style="color:#9ca3af;font-size:10px;text-transform:uppercase;font-weight:700;margin:0 0 3px">Date of Birth</p><p style="color:#111;font-weight:500;margin:0">14 Mar 1985</p></div>
+        <div><p style="color:#9ca3af;font-size:10px;text-transform:uppercase;font-weight:700;margin:0 0 3px">NHS Number</p><p style="color:#111;font-weight:500;margin:0">485 123 4567</p></div>
+        <div><p style="color:#9ca3af;font-size:10px;text-transform:uppercase;font-weight:700;margin:0 0 3px">Status</p><span class="badge success">Active</span></div>
+        <div><p style="color:#9ca3af;font-size:10px;text-transform:uppercase;font-weight:700;margin:0 0 3px">Move-in Date</p><p style="color:#111;font-weight:500;margin:0">15 Jan 2025</p></div>
+      </div>
+      <hr style="border:none;border-top:1px solid #f3f4f6;margin-bottom:18px"/>
+      <p style="font-size:13px;font-weight:600;color:#111;margin:0 0 14px">Emergency Contact</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;font-size:13px">
+        <div><p style="color:#9ca3af;font-size:10px;margin:0">Name</p><p style="color:#111;font-weight:500;margin:2px 0 0" id="pfEcName">David Mitchell</p></div>
+        <div><p style="color:#9ca3af;font-size:10px;margin:0">Phone</p><p style="color:#111;font-weight:500;margin:2px 0 0" id="pfEcPhone">07712 999 888</p></div>
+        <div><p style="color:#9ca3af;font-size:10px;margin:0">Relationship</p><p style="color:#111;font-weight:500;margin:2px 0 0" id="pfEcRel">Spouse</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     MODALS
+════════════════════════════════════════════════════════════ -->
+
+<!-- ADD CLIENT -->
+<div id="addClientModal" class="modal-overlay" onclick="overlayClose(event,'addClientModal')">
+  <div class="modal-box">
+    <div class="modal-header"><h2 style="font-size:16px;font-weight:700;color:#111;margin:0">➕ Add New Client</h2><button onclick="closeModal('addClientModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>First Name *</label><input id="ac_fn" placeholder="e.g. John"/></div>
+        <div class="form-group"><label>Last Name *</label><input id="ac_ln" placeholder="e.g. Smith"/></div>
+        <div class="form-group"><label>Email *</label><input id="ac_em" type="email" placeholder="john@email.com"/></div>
+        <div class="form-group"><label>Phone</label><input id="ac_ph" placeholder="04XX XXX XXX"/></div>
+        <div class="form-group"><label>Date of Birth</label><input id="ac_dob" type="date"/></div>
+        <div class="form-group"><label>Gender</label><select id="ac_gen"><option value="">Select…</option><option>Male</option><option>Female</option><option>Non-binary</option><option>Prefer not to say</option></select></div>
+        <div class="form-group"><label>NHS Number</label><input id="ac_ndis" placeholder="e.g. 485 123 4567"/></div>
+        <div class="form-group"><label>Status</label><select id="ac_st"><option value="active">Active</option><option value="pending">Pending</option><option value="inactive">Inactive</option></select></div>
+        <div class="form-group"><label>Emergency Contact Name</label><input id="ac_ecn" placeholder="Full name"/></div>
+        <div class="form-group"><label>Emergency Contact Phone</label><input id="ac_ecp" placeholder="04XX XXX XXX"/></div>
+        <div class="form-group full"><label>Support Needs</label><textarea id="ac_sn" rows="3" placeholder="Describe support needs…"></textarea></div>
+        <div class="form-group full"><label>Notes</label><textarea id="ac_no" rows="2" placeholder="Internal notes…"></textarea></div>
+      </div>
+      <div style="background:#eff6ff;border-radius:8px;padding:10px 12px;margin-top:12px;font-size:12px;color:#1d4ed8">🔑 Default password: <b>Welcome@123</b> — client should change on first login.</div>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" onclick="closeModal('addClientModal')">Cancel</button><button class="btn-primary" onclick="saveNewClient()">✅ Create Client</button></div>
+  </div>
+</div>
+
+<!-- EDIT CLIENT -->
+<div id="editClientModal" class="modal-overlay" onclick="overlayClose(event,'editClientModal')">
+  <div class="modal-box">
+    <div class="modal-header"><h2 style="font-size:16px;font-weight:700;color:#111;margin:0">✏️ Edit Client</h2><button onclick="closeModal('editClientModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>First Name</label><input id="ec_fn"/></div>
+        <div class="form-group"><label>Last Name</label><input id="ec_ln"/></div>
+        <div class="form-group"><label>Email</label><input id="ec_em" type="email"/></div>
+        <div class="form-group"><label>Phone</label><input id="ec_ph"/></div>
+        <div class="form-group"><label>NHS Number</label><input id="ec_ndis"/></div>
+        <div class="form-group"><label>Status</label><select id="ec_st"><option value="active">Active</option><option value="pending">Pending</option><option value="inactive">Inactive</option><option value="exited">Exited</option></select></div>
+        <div class="form-group"><label>Move-in Date</label><input id="ec_mid" type="date"/></div>
+        <div class="form-group"><label>Move-out Date</label><input id="ec_mod" type="date"/></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" onclick="closeModal('editClientModal')">Cancel</button><button class="btn-primary" onclick="saveEditClient()">💾 Save Changes</button></div>
+  </div>
+</div>
+
+<!-- ADD PROPERTY -->
+<div id="addPropertyModal" class="modal-overlay" onclick="overlayClose(event,'addPropertyModal')">
+  <div class="modal-box">
+    <div class="modal-header"><h2 style="font-size:16px;font-weight:700;color:#111;margin:0">🏠 Add New Property</h2><button onclick="closeModal('addPropertyModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>Street Address *</label><input id="ap_addr" placeholder="e.g. 14 Ashdown Crescent"/></div>
+        <div class="form-group"><label>Town / City *</label><input id="ap_sub" placeholder="e.g. Manchester"/></div>
+        <div class="form-group"><label>County / Region</label><input id="ap_st" placeholder="e.g. Greater Manchester"/></div>
+        <div class="form-group"><label>Postcode *</label><input id="ap_pc" placeholder="e.g. M4 1LT"/></div>
+        <div class="form-group"><label>Property Type</label>
+          <select id="ap_type">
+            <option value="terraced">Terraced House</option>
+            <option value="semi-detached">Semi-Detached House</option>
+            <option value="detached">Detached House</option>
+            <option value="flat">Flat / Apartment</option>
+            <option value="bungalow">Bungalow</option>
+            <option value="studio">Studio Flat</option>
+            <option value="bedsit">Bedsit</option>
+            <option value="maisonette">Maisonette</option>
+            <option value="house">House (Other)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Bedrooms</label><input id="ap_bed" type="number" min="0" value="2"/></div>
+        <div class="form-group"><label>Bathrooms</label><input id="ap_bath" type="number" min="0" value="1"/></div>
+        <div class="form-group"><label>Capacity (max residents)</label><input id="ap_cap" type="number" min="1" value="2"/></div>
+        <div class="form-group"><label>Status</label><select id="ap_status"><option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option><option value="inactive">Inactive</option></select></div>
+        <div class="form-group"><label>Monthly Rent (£)</label><input id="ap_rent" type="number" placeholder="e.g. 1100" min="0"/></div>
+        <div class="form-group full"><label>Description</label><textarea id="ap_desc" rows="3" placeholder="Notes about this property…"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" onclick="closeModal('addPropertyModal')">Cancel</button><button class="btn-primary" onclick="saveNewProperty()">✅ Create Property</button></div>
+  </div>
+</div>
+
+<!-- EDIT PROPERTY -->
+<div id="editPropertyModal" class="modal-overlay" onclick="overlayClose(event,'editPropertyModal')">
+  <div class="modal-box">
+    <div class="modal-header"><h2 style="font-size:16px;font-weight:700;color:#111;margin:0">✏️ Edit Property</h2><button onclick="closeModal('editPropertyModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>Street Address</label><input id="ep_addr"/></div>
+        <div class="form-group"><label>Town / City</label><input id="ep_sub"/></div>
+        <div class="form-group"><label>County / Region</label><input id="ep_st"/></div>
+        <div class="form-group"><label>Postcode</label><input id="ep_pc" placeholder="e.g. M4 1LT"/></div>
+        <div class="form-group"><label>Property Type</label>
+          <select id="ep_type">
+            <option value="terraced">Terraced House</option>
+            <option value="semi-detached">Semi-Detached House</option>
+            <option value="detached">Detached House</option>
+            <option value="flat">Flat / Apartment</option>
+            <option value="bungalow">Bungalow</option>
+            <option value="studio">Studio Flat</option>
+            <option value="bedsit">Bedsit</option>
+            <option value="maisonette">Maisonette</option>
+            <option value="house">House (Other)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Bedrooms</label><input id="ep_bed" type="number" min="0"/></div>
+        <div class="form-group"><label>Bathrooms</label><input id="ep_bath" type="number" min="0"/></div>
+        <div class="form-group"><label>Capacity</label><input id="ep_cap" type="number" min="1"/></div>
+        <div class="form-group"><label>Status</label><select id="ep_status"><option value="available">Available</option><option value="occupied">Occupied</option><option value="maintenance">Maintenance</option><option value="inactive">Inactive</option></select></div>
+        <div class="form-group"><label>Monthly Rent (£)</label><input id="ep_rent" type="number"/></div>
+        <div class="form-group full"><label>Description</label><textarea id="ep_desc" rows="3"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" onclick="closeModal('editPropertyModal')">Cancel</button><button class="btn-primary" onclick="saveEditProperty()">💾 Save Changes</button></div>
+  </div>
+</div>
+
+<!-- TICKET DETAIL -->
+<div id="ticketDetailModal" class="modal-overlay" onclick="overlayClose(event,'ticketDetailModal')">
+  <div class="modal-box" style="max-width:760px">
+    <div class="modal-header"><h2 id="td_title" style="font-size:16px;font-weight:700;color:#111;margin:0"></h2><button onclick="closeModal('ticketDetailModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button></div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;font-size:12px">
+        <div><p style="color:#9ca3af;margin:0">Client</p><p id="td_client" style="font-weight:500;color:#111;margin:2px 0 0"></p></div>
+        <div><p style="color:#9ca3af;margin:0">Category</p><p id="td_cat" style="font-weight:500;color:#111;margin:2px 0 0"></p></div>
+        <div><p style="color:#9ca3af;margin:0">Priority</p><p id="td_pri" style="margin:2px 0 0"></p></div>
+        <div><p style="color:#9ca3af;margin:0">Status</p><p id="td_status" style="margin:2px 0 0"></p></div>
+      </div>
+      <div id="td_desc" style="background:#f9fafb;border-radius:8px;padding:14px;font-size:13px;color:#374151;margin-bottom:16px;line-height:1.6"></div>
+      <!-- Update controls -->
+      <div style="background:#eff6ff;border-radius:10px;padding:14px;margin-bottom:16px">
+        <p style="font-size:12px;font-weight:700;color:#1d4ed8;margin:0 0 10px">⚙️ Update Ticket</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div class="form-group"><label>Status</label><select id="td_newStatus"><option value="open">Open</option><option value="in_progress">In Progress</option><option value="pending_client">Awaiting Client</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></div>
+          <div class="form-group"><label>Priority</label><select id="td_newPri"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+          <div class="form-group"><label>Assign to</label><select id="td_assign"><option value="">Unassigned</option><option value="1">J. Smith</option><option value="2">M. Lee</option><option value="3">R. Jones</option></select></div>
+        </div>
+        <div style="margin-top:10px;text-align:right"><button class="btn-primary" style="font-size:12px;padding:7px 14px" onclick="updateTicket()">Update</button></div>
+      </div>
+      <!-- Conversation -->
+      <p style="font-size:13px;font-weight:600;color:#111;margin:0 0 12px">💬 Conversation</p>
+      <div id="td_msgs" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;max-height:200px;overflow-y:auto">
+        <div style="display:flex;gap:10px"><div style="width:30px;height:30px;border-radius:9999px;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#1d4ed8;flex-shrink:0">C</div><div style="max-width:75%;background:#f3f4f6;border-radius:10px;padding:10px 12px;font-size:13px"><p style="font-size:10px;color:#9ca3af;margin:0 0 4px">Client · 06 May 10:23</p><p id="td_origMsg" style="margin:0;line-height:1.5"></p></div></div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px"><label>Reply</label><textarea id="td_reply" rows="3" placeholder="Type your reply to the client…" style="margin-top:5px"></textarea></div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#374151;cursor:pointer"><input type="checkbox" id="td_internal"/> Internal note only (not visible to client)</label>
+        <button class="btn-primary" style="font-size:12px;padding:7px 14px" onclick="sendReply()">📨 Send Reply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD REPORT -->
+<div id="addReportModal" class="modal-overlay" onclick="overlayClose(event,'addReportModal')">
+  <div class="modal-box">
+    <div class="modal-header"><h2 style="font-size:16px;font-weight:700;color:#111;margin:0">📄 New Report</h2><button onclick="closeModal('addReportModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Client (optional)</label><select id="ar_client"><option value="">— No specific client —</option><option>Sarah Mitchell</option><option>James Okafor</option><option>Emma Clarke</option><option>Tony Nguyen</option><option>Priya Sharma</option></select></div>
+        <div class="form-group"><label>Report Type *</label><select id="ar_type"><option value="case_note">Case Note</option><option value="incident">Incident</option><option value="progress">Progress</option><option value="assessment">Assessment</option><option value="exit">Exit</option><option value="other">Other</option></select></div>
+        <div class="form-group full"><label>Title *</label><input id="ar_title" placeholder="Report title…"/></div>
+        <div class="form-group full"><label>Content *</label><textarea id="ar_content" rows="8" placeholder="Write the report content here…"></textarea></div>
+        <div class="form-group full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ar_conf"/> Mark as confidential 🔒</label></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" onclick="closeModal('addReportModal')">Cancel</button><button class="btn-primary" onclick="saveNewReport()">✅ Create Report</button></div>
+  </div>
+</div>
+
+<!-- EDIT REPORT -->
+<div id="editReportModal" class="modal-overlay" onclick="overlayClose(event,'editReportModal')">
+  <div class="modal-box">
+    <div class="modal-header"><h2 style="font-size:16px;font-weight:700;color:#111;margin:0">✏️ Edit Report</h2><button onclick="closeModal('editReportModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Client</label><select id="er_client"><option value="">— No specific client —</option><option>Sarah Mitchell</option><option>James Okafor</option><option>Emma Clarke</option><option>Tony Nguyen</option></select></div>
+        <div class="form-group"><label>Report Type</label><select id="er_type"><option value="case_note">Case Note</option><option value="incident">Incident</option><option value="progress">Progress</option><option value="assessment">Assessment</option><option value="exit">Exit</option><option value="other">Other</option></select></div>
+        <div class="form-group full"><label>Title *</label><input id="er_title"/></div>
+        <div class="form-group full"><label>Content *</label><textarea id="er_content" rows="8"></textarea></div>
+        <div class="form-group full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="er_conf"/> Confidential 🔒</label></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" onclick="closeModal('editReportModal')">Cancel</button><button class="btn-primary" onclick="saveEditReport()">💾 Save Changes</button></div>
+  </div>
+</div>
+
+<!-- EDIT PROFILE (client) -->
+<div id="editProfileModal" class="modal-overlay" onclick="overlayClose(event,'editProfileModal')">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-header"><h2 style="font-size:16px;font-weight:700;color:#111;margin:0">✏️ Edit My Profile</h2><button onclick="closeModal('editProfileModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>First Name</label><input id="ep2_fn" value="Sarah"/></div>
+        <div class="form-group"><label>Last Name</label><input id="ep2_ln" value="Mitchell"/></div>
+        <div class="form-group full"><label>Phone</label><input id="ep2_ph" value="07712 345 678"/></div>
+      </div>
+      <hr style="border:none;border-top:1px solid #f3f4f6;margin:16px 0"/>
+      <p style="font-size:13px;font-weight:600;color:#111;margin:0 0 12px">Emergency Contact</p>
+      <div class="form-grid">
+        <div class="form-group"><label>Name</label><input id="ep2_ecn" value="David Mitchell"/></div>
+        <div class="form-group"><label>Phone</label><input id="ep2_ecp" value="07712 999 888"/></div>
+        <div class="form-group full"><label>Relationship</label><input id="ep2_ecr" value="Spouse"/></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-secondary" onclick="closeModal('editProfileModal')">Cancel</button><button class="btn-teal" onclick="saveProfile()">💾 Save Changes</button></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════════════════════════════════
+     ADMIN CHECKLISTS
+════════════════════════════════════════════ -->
+<div id="checklists" class="screen">
+  <div class="sidebar sidebar-admin">
+    <div class="sidebar-logo"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:22px">🏠</span><div><p style="color:#fff;font-weight:700;font-size:15px;margin:0">SupportHome</p><p style="color:#93c5fd;font-size:10px;margin:0">Admin Portal</p></div></div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-link" onclick="showScreen('dash')">📊 Dashboard</div>
+      <div class="sidebar-link" onclick="showScreen('clients')">👥 Clients</div>
+      <div class="sidebar-link" onclick="showScreen('properties')">🏠 Properties</div>
+      <div class="sidebar-link" onclick="showScreen('tickets')">🎫 Tickets</div>
+      <div class="sidebar-link" onclick="showScreen('reports')">📄 Reports</div>
+      <div class="sidebar-link" onclick="showScreen('payments')">💳 Payments</div>
+      <div class="sidebar-link active" onclick="showScreen('checklists')">🔍 Checklists</div>
+    </nav>
+    <div class="sidebar-footer"><span style="color:#93c5fd;font-size:11px;cursor:pointer" onclick="showScreen('login')">⬅ Sign out</span></div>
+  </div>
+  <div class="main">
+    <div class="page-header">
+      <div>
+        <h1 style="font-size:21px;font-weight:700;color:#111;margin:0">Property Checklists</h1>
+        <p style="color:#6b7280;font-size:12px;margin:4px 0 0" id="inspCount">0 inspections</p>
+      </div>
+      <button class="btn-primary" onclick="openStartInspection()">+ Start Inspection</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">
+      <div class="stat-card"><div class="stat-icon" style="background:#dbeafe">🔍</div><div><p style="font-size:20px;font-weight:700;color:#111;margin:0" id="ci_total">0</p><p style="font-size:11px;color:#6b7280;margin:0">Total Inspections</p></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#dcfce7">✅</div><div><p style="font-size:20px;font-weight:700;color:#111;margin:0" id="ci_pass">0</p><p style="font-size:11px;color:#6b7280;margin:0">Passed</p></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#fef9c3">⚠️</div><div><p style="font-size:20px;font-weight:700;color:#111;margin:0" id="ci_issues">0</p><p style="font-size:11px;color:#6b7280;margin:0">Pass with Issues</p></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#fee2e2">❌</div><div><p style="font-size:20px;font-weight:700;color:#111;margin:0" id="ci_fail">0</p><p style="font-size:11px;color:#6b7280;margin:0">Failed</p></div></div>
+    </div>
+
+    <div class="filter-bar" style="margin-bottom:16px">
+      <select id="cl_filterProp" style="flex:1;min-width:200px" onchange="renderInspections()">
+        <option value="">All properties</option>
+        <option>14 Ashdown Crescent, Manchester</option>
+        <option>Flat 7, 42 Victoria Road, London</option>
+        <option>33 Birchwood Drive, Birmingham</option>
+      </select>
+      <select id="cl_filterResult" style="width:180px" onchange="renderInspections()">
+        <option value="">All results</option>
+        <option value="Pass">Pass</option>
+        <option value="Pass with Issues">Pass with Issues</option>
+        <option value="Fail">Fail</option>
+      </select>
+    </div>
+
+    <div class="card" style="overflow:hidden">
+      <table>
+        <thead>
+          <tr>
+            <th>Property</th><th>Date</th><th>Inspector</th>
+            <th style="text-align:center">✅ Passed</th>
+            <th style="text-align:center">❌ Failed</th>
+            <th>Result</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="inspTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- START INSPECTION MODAL -->
+<div id="startInspModal" class="modal-overlay" onclick="overlayClose(event,'startInspModal')">
+  <div class="modal-box" style="max-width:680px;max-height:88vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <h2 style="font-size:16px;font-weight:700;color:#111;margin:0">🔍 Start Property Inspection</h2>
+      <button onclick="closeModal('startInspModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;flex:1">
+      <!-- Top fields -->
+      <div class="form-grid" style="margin-bottom:20px">
+        <div class="form-group"><label>Property *</label>
+          <select id="si_property">
+            <option value="">Select property…</option>
+            <option>14 Ashdown Crescent, Manchester</option>
+            <option>Flat 7, 42 Victoria Road, London</option>
+            <option>33 Birchwood Drive, Birmingham</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Housing Officer / Inspector *</label>
+          <input id="si_inspector" type="text" placeholder="Full name"/>
+        </div>
+        <div class="form-group"><label>Inspection Date</label>
+          <input id="si_date" type="date"/>
+        </div>
+        <div class="form-group"><label>Inspection Type</label>
+          <select id="si_type">
+            <option value="Routine">Routine (Scheduled)</option>
+            <option value="Follow-up">Follow-up</option>
+            <option value="Move-in">Move-in Condition</option>
+            <option value="Move-out">Move-out Condition</option>
+            <option value="Emergency">Emergency</option>
+          </select>
+        </div>
+      </div>
+      <hr style="border:none;border-top:2px solid #f3f4f6;margin-bottom:20px"/>
+      <!-- Checklist items injected here -->
+      <div id="inspChecklistItems"></div>
+      <hr style="border:none;border-top:2px solid #f3f4f6;margin:20px 0 14px"/>
+      <div class="form-group full">
+        <label>Overall Notes / Summary</label>
+        <textarea id="si_notes" rows="3" placeholder="General observations or follow-up actions required…" style="margin-top:5px;resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('startInspModal')">Cancel</button>
+      <button class="btn-primary" onclick="submitInspection()">💾 Submit Inspection</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW INSPECTION MODAL -->
+<div id="viewInspModal" class="modal-overlay" onclick="overlayClose(event,'viewInspModal')">
+  <div class="modal-box" style="max-width:680px;max-height:88vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <h2 style="font-size:16px;font-weight:700;color:#111;margin:0" id="viewInspTitle">Inspection Report</h2>
+      <button onclick="closeModal('viewInspModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;flex:1" id="viewInspContent"></div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="closeModal('viewInspModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     ADMIN PAYMENTS
+════════════════════════════════════════════ -->
+<div id="payments" class="screen">
+  <div class="sidebar sidebar-admin">
+    <div class="sidebar-logo"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:22px">🏠</span><div><p style="color:#fff;font-weight:700;font-size:15px;margin:0">SupportHome</p><p style="color:#93c5fd;font-size:10px;margin:0">Admin Portal</p></div></div></div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-link" onclick="showScreen('dash')">📊 Dashboard</div>
+      <div class="sidebar-link" onclick="showScreen('clients')">👥 Clients</div>
+      <div class="sidebar-link" onclick="showScreen('properties')">🏠 Properties</div>
+      <div class="sidebar-link" onclick="showScreen('tickets')">🎫 Tickets</div>
+      <div class="sidebar-link" onclick="showScreen('reports')">📄 Reports</div>
+      <div class="sidebar-link active" onclick="showScreen('payments')">💳 Payments</div>
+      <div class="sidebar-link" onclick="showScreen('checklists')">🔍 Checklists</div>
+    </nav>
+    <div class="sidebar-footer"><span style="color:#93c5fd;font-size:11px;cursor:pointer" onclick="showScreen('login')">⬅ Sign out</span></div>
+  </div>
+
+  <div class="main">
+    <!-- Page header -->
+    <div class="page-header">
+      <div>
+        <h1 style="font-size:21px;font-weight:700;color:#111;margin:0">Payments</h1>
+        <p style="color:#6b7280;font-size:12px;margin:4px 0 0">Client bills &amp; housing benefit income</p>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-secondary" onclick="openModal('addBillModal')">＋ Add Bill</button>
+        <button class="btn-primary"   onclick="openModal('addBenefitModal')">＋ Add Benefit</button>
+      </div>
+    </div>
+
+    <!-- Summary cards -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px">
+      <div class="stat-card"><div class="stat-icon" style="background:#fee2e2">📋</div><div><p style="font-size:20px;font-weight:700;color:#111;margin:0" id="py_totalBills">$0</p><p style="font-size:11px;color:#6b7280;margin:0">Total Bills (this month)</p></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#dcfce7">💰</div><div><p style="font-size:20px;font-weight:700;color:#111;margin:0" id="py_totalBenefits">$0</p><p style="font-size:11px;color:#6b7280;margin:0">Total Benefits (this month)</p></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#dbeafe">📊</div><div><p style="font-size:20px;font-weight:700;color:#111;margin:0" id="py_balance">$0</p><p style="font-size:11px;color:#6b7280;margin:0">Net Balance</p></div></div>
+      <div class="stat-card"><div class="stat-icon" style="background:#fef9c3">⏳</div><div><p style="font-size:20px;font-weight:700;color:#111;margin:0" id="py_pending">0</p><p style="font-size:11px;color:#6b7280;margin:0">Pending Payments</p></div></div>
+    </div>
+
+    <!-- Month + client filter bar -->
+    <div class="filter-bar" style="margin-bottom:18px">
+      <span style="font-size:12px;color:#6b7280;font-weight:600">Filter:</span>
+      <select id="py_filterClient" style="flex:1;min-width:160px" onchange="renderPayments()">
+        <option value="">All Clients</option>
+        <option>Sarah Mitchell</option>
+        <option>James Okafor</option>
+        <option>Emma Clarke</option>
+        <option>Tony Nguyen</option>
+        <option>Priya Sharma</option>
+      </select>
+      <select id="py_filterMonth" style="flex:1;min-width:140px" onchange="renderPayments()">
+        <option value="">All Months</option>
+        <option value="Jan 2025">Jan 2025</option>
+        <option value="Feb 2025">Feb 2025</option>
+        <option value="Mar 2025">Mar 2025</option>
+        <option value="Apr 2025">Apr 2025</option>
+        <option value="May 2025">May 2025</option>
+      </select>
+      <select id="py_filterType" style="flex:1;min-width:120px" onchange="renderPayments()">
+        <option value="">Bills &amp; Benefits</option>
+        <option value="bill">Bills only</option>
+        <option value="benefit">Benefits only</option>
+      </select>
+    </div>
+
+    <!-- Two-column layout: bills left, benefits right -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+      <!-- Bills -->
+      <div class="card" style="overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:16px">📋</span>
+            <b style="font-size:14px;color:#111">Monthly Bills</b>
+          </div>
+          <button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openModal('addBillModal')">+ Add</button>
+        </div>
+        <table>
+          <thead><tr><th>Client</th><th>Category</th><th>Amount</th><th>Month</th><th>Status</th><th></th></tr></thead>
+          <tbody id="billsTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Benefits -->
+      <div class="card" style="overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:16px">💰</span>
+            <b style="font-size:14px;color:#111">Housing Benefit Income</b>
+          </div>
+          <button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="openModal('addBenefitModal')">+ Add</button>
+        </div>
+        <table>
+          <thead><tr><th>Client</th><th>Benefit Type</th><th>Amount</th><th>Month</th><th>Status</th><th></th></tr></thead>
+          <tbody id="benefitsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Per-client summary table -->
+    <div class="card" style="overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid #f3f4f6">
+        <b style="font-size:14px;color:#111">📊 Client Payment Summary</b>
+        <span style="font-size:12px;color:#6b7280;margin-left:8px">(current month)</span>
+      </div>
+      <table>
+        <thead><tr><th>Client</th><th>Rent</th><th>Utilities</th><th>Other Bills</th><th>Total Bills</th><th>Housing Benefit</th><th>Other Income</th><th>Balance</th></tr></thead>
+        <tbody id="summaryTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ADD BILL MODAL -->
+<div id="addBillModal" class="modal-overlay" onclick="overlayClose(event,'addBillModal')">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-header">
+      <h2 style="font-size:16px;font-weight:700;color:#111;margin:0">📋 Add Monthly Bill</h2>
+      <button onclick="closeModal('addBillModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Client *</label>
+          <select id="ab_client">
+            <option value="">Select client…</option>
+            <option>Sarah Mitchell</option><option>James Okafor</option>
+            <option>Emma Clarke</option><option>Tony Nguyen</option><option>Priya Sharma</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Bill Category *</label>
+          <select id="ab_cat">
+            <option value="">Select…</option>
+            <option value="Rent">Rent</option>
+            <option value="Electricity">Electricity</option>
+            <option value="Gas">Gas</option>
+            <option value="Water">Water</option>
+            <option value="Internet">Internet</option>
+            <option value="Phone">Phone</option>
+            <option value="Council Rates">Council Rates</option>
+            <option value="Body Corporate">Body Corporate</option>
+            <option value="Insurance">Insurance</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Amount ($) *</label>
+          <input id="ab_amount" type="number" min="0" step="0.01" placeholder="e.g. 1500.00"/>
+        </div>
+        <div class="form-group"><label>Month *</label>
+          <select id="ab_month">
+            <option value="May 2025">May 2025</option>
+            <option value="Apr 2025">Apr 2025</option>
+            <option value="Mar 2025">Mar 2025</option>
+            <option value="Feb 2025">Feb 2025</option>
+            <option value="Jan 2025">Jan 2025</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Due Date</label>
+          <input id="ab_due" type="date"/>
+        </div>
+        <div class="form-group"><label>Status</label>
+          <select id="ab_status">
+            <option value="Pending">Pending</option>
+            <option value="Paid">Paid</option>
+            <option value="Overdue">Overdue</option>
+            <option value="Waived">Waived</option>
+          </select>
+        </div>
+        <div class="form-group full"><label>Notes</label>
+          <textarea id="ab_notes" rows="2" placeholder="Optional notes…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('addBillModal')">Cancel</button>
+      <button class="btn-primary" onclick="saveNewBill()">✅ Add Bill</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT BILL MODAL -->
+<div id="editBillModal" class="modal-overlay" onclick="overlayClose(event,'editBillModal')">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-header">
+      <h2 style="font-size:16px;font-weight:700;color:#111;margin:0">✏️ Edit Bill</h2>
+      <button onclick="closeModal('editBillModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Client</label>
+          <select id="eb_client">
+            <option>Sarah Mitchell</option><option>James Okafor</option>
+            <option>Emma Clarke</option><option>Tony Nguyen</option><option>Priya Sharma</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Bill Category</label>
+          <select id="eb_cat">
+            <option>Rent</option><option>Electricity</option><option>Gas</option><option>Water</option>
+            <option>Internet</option><option>Phone</option><option>Council Rates</option>
+            <option>Body Corporate</option><option>Insurance</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Amount ($)</label>
+          <input id="eb_amount" type="number" min="0" step="0.01"/>
+        </div>
+        <div class="form-group"><label>Month</label>
+          <select id="eb_month">
+            <option>May 2025</option><option>Apr 2025</option><option>Mar 2025</option>
+            <option>Feb 2025</option><option>Jan 2025</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Due Date</label>
+          <input id="eb_due" type="date"/>
+        </div>
+        <div class="form-group"><label>Status</label>
+          <select id="eb_status">
+            <option value="Pending">Pending</option>
+            <option value="Paid">Paid</option>
+            <option value="Overdue">Overdue</option>
+            <option value="Waived">Waived</option>
+          </select>
+        </div>
+        <div class="form-group full"><label>Notes</label>
+          <textarea id="eb_notes" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('editBillModal')">Cancel</button>
+      <button class="btn-primary" onclick="saveEditBill()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD BENEFIT MODAL -->
+<div id="addBenefitModal" class="modal-overlay" onclick="overlayClose(event,'addBenefitModal')">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-header">
+      <h2 style="font-size:16px;font-weight:700;color:#111;margin:0">💰 Add Housing Benefit / Income</h2>
+      <button onclick="closeModal('addBenefitModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Client *</label>
+          <select id="abn_client">
+            <option value="">Select client…</option>
+            <option>Sarah Mitchell</option><option>James Okafor</option>
+            <option>Emma Clarke</option><option>Tony Nguyen</option><option>Priya Sharma</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Benefit / Income Type *</label>
+          <select id="abn_type">
+            <option value="">Select…</option>
+            <option value="Universal Credit">Universal Credit</option>
+            <option value="Local Housing Allowance (LHA)">Local Housing Allowance (LHA)</option>
+            <option value="Housing Benefit">Housing Benefit</option>
+            <option value="Personal Independence Payment (PIP)">Personal Independence Payment (PIP)</option>
+            <option value="Employment & Support Allowance (ESA)">Employment &amp; Support Allowance (ESA)</option>
+            <option value="Jobseeker's Allowance (JSA)">Jobseeker's Allowance (JSA)</option>
+            <option value="Disability Living Allowance (DLA)">Disability Living Allowance (DLA)</option>
+            <option value="Attendance Allowance">Attendance Allowance</option>
+            <option value="State Pension">State Pension</option>
+            <option value="Carer's Allowance">Carer's Allowance</option>
+            <option value="Child Benefit">Child Benefit</option>
+            <option value="Adult Social Care Funding">Adult Social Care Funding</option>
+            <option value="Other Income">Other Income</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Amount ($) *</label>
+          <input id="abn_amount" type="number" min="0" step="0.01" placeholder="e.g. 750.00"/>
+        </div>
+        <div class="form-group"><label>Month *</label>
+          <select id="abn_month">
+            <option value="May 2025">May 2025</option>
+            <option value="Apr 2025">Apr 2025</option>
+            <option value="Mar 2025">Mar 2025</option>
+            <option value="Feb 2025">Feb 2025</option>
+            <option value="Jan 2025">Jan 2025</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Received Date</label>
+          <input id="abn_date" type="date"/>
+        </div>
+        <div class="form-group"><label>Status</label>
+          <select id="abn_status">
+            <option value="Received">Received</option>
+            <option value="Pending">Pending</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="form-group full"><label>Reference / Notes</label>
+          <textarea id="abn_notes" rows="2" placeholder="Reference number or notes…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('addBenefitModal')">Cancel</button>
+      <button class="btn-primary" onclick="saveNewBenefit()">✅ Add Benefit</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT BENEFIT MODAL -->
+<div id="editBenefitModal" class="modal-overlay" onclick="overlayClose(event,'editBenefitModal')">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-header">
+      <h2 style="font-size:16px;font-weight:700;color:#111;margin:0">✏️ Edit Benefit / Income</h2>
+      <button onclick="closeModal('editBenefitModal')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label>Client</label>
+          <select id="ebn_client">
+            <option>Sarah Mitchell</option><option>James Okafor</option>
+            <option>Emma Clarke</option><option>Tony Nguyen</option><option>Priya Sharma</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Benefit / Income Type</label>
+          <select id="ebn_type">
+            <option>Universal Credit</option>
+            <option>Local Housing Allowance (LHA)</option>
+            <option>Housing Benefit</option>
+            <option>Personal Independence Payment (PIP)</option>
+            <option>Employment &amp; Support Allowance (ESA)</option>
+            <option>Jobseeker's Allowance (JSA)</option>
+            <option>Disability Living Allowance (DLA)</option>
+            <option>Attendance Allowance</option>
+            <option>State Pension</option>
+            <option>Carer's Allowance</option>
+            <option>Child Benefit</option>
+            <option>Adult Social Care Funding</option>
+            <option>Other Income</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Amount ($)</label>
+          <input id="ebn_amount" type="number" min="0" step="0.01"/>
+        </div>
+        <div class="form-group"><label>Month</label>
+          <select id="ebn_month">
+            <option>May 2025</option><option>Apr 2025</option><option>Mar 2025</option>
+            <option>Feb 2025</option><option>Jan 2025</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Received Date</label>
+          <input id="ebn_date" type="date"/>
+        </div>
+        <div class="form-group"><label>Status</label>
+          <select id="ebn_status">
+            <option value="Received">Received</option>
+            <option value="Pending">Pending</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="form-group full"><label>Notes</label>
+          <textarea id="ebn_notes" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('editBenefitModal')">Cancel</button>
+      <button class="btn-primary" onclick="saveEditBenefit()">💾 Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════ -->
+<script>
+// ── State ─────────────────────────────────
+let clients = [
+  {name:'Sarah Mitchell',email:'sarah.m@email.com',phone:'07712 345 678',ndis:'485 123 4567',property:'14 Ashdown Crescent, Manchester',status:'Active'},
+  {name:'James Okafor', email:'james.o@email.com', phone:'07823 456 789',ndis:'—',           property:'Flat 7, 42 Victoria Rd, London',status:'Active'},
+  {name:'Emma Clarke',  email:'emma.c@email.com',  phone:'07934 567 890',ndis:'485 987 6543', property:'33 Birchwood Drive, Birmingham', status:'Pending'},
+  {name:'Tony Nguyen',  email:'tony.n@email.com',  phone:'07445 678 901',ndis:'485 555 0012', property:'—',                              status:'Active'},
+  {name:'Priya Sharma', email:'priya.s@email.com', phone:'07556 789 012',ndis:'—',            property:'22 Church St, Liverpool',         status:'Inactive'},
+];
+let properties = [
+  {addr:'14 Ashdown Crescent',suburb:'Manchester',state:'Greater Manchester',pc:'M4 1LT',type:'terraced',bed:3,bath:1,cap:2,occ:1,status:'Occupied',rent:1100,desc:'Terraced support house for residents with complex needs'},
+  {addr:'Flat 7, 42 Victoria Road',suburb:'London',state:'Greater London',pc:'E3 4NQ',type:'flat',bed:1,bath:1,cap:1,occ:0,status:'Available',rent:1050,desc:'Self-contained flat in East London'},
+  {addr:'33 Birchwood Drive',suburb:'Birmingham',state:'West Midlands',pc:'B15 2RT',type:'semi-detached',bed:4,bath:2,cap:4,occ:2,status:'Maintenance',rent:1400,desc:'Semi-detached house — under planned maintenance'},
+];
+let reports = [
+  {title:'Monthly case review — Sarah M.', client:'Sarah Mitchell', type:'Case Note', author:'J. Smith', content:'This is the monthly case review for Sarah Mitchell.'},
+  {title:'Incident: Altercation at 88 Pitt St', client:'Emma Clarke', type:'Incident', author:'M. Lee', content:'A verbal altercation occurred between two residents at 88 Pitt Street on the evening of 2 May 2025.'},
+  {title:'Progress update — James O.', client:'James Okafor', type:'Progress', author:'J. Smith', content:'James continues to make good progress.'},
+];
+let currentEditProp = null;
+let currentEditClient = null;
+let currentEditReport = null;
+
+// ── Shared ticket store ───────────────────
+let allTickets = [
+  {title:'Leaking pipe in bathroom',        desc:'There is water leaking from the pipe under the bathroom sink.',         cat:'Maintenance', priority:'Urgent',  status:'Open',        client:'Sarah Mitchell', date:'06 May 2025'},
+  {title:'Request for financial assistance', desc:'I am struggling to pay rent this week and would like to discuss options.', cat:'Financial',   priority:'High',    status:'In Progress', client:'James Okafor',  date:'05 May 2025'},
+  {title:'Key replacement needed',           desc:'I have lost my front door key and need a replacement.',                  cat:'General',     priority:'Medium',  status:'Open',        client:'Emma Clarke',    date:'04 May 2025'},
+  {title:'PIP assessment support',           desc:'I need help understanding my PIP assessment and what support I am entitled to.', cat:'Support', priority:'Low', status:'Resolved', client:'Tony Nguyen', date:'02 May 2025'},
+];
+
+function renderAdminTickets() {
+  const tbody = document.getElementById('adminTicketBody');
+  if (!tbody) return;
+  tbody.innerHTML = allTickets.map((t,i)=>`
+    <tr>
+      <td><b>${t.title}</b></td>
+      <td>${t.client}</td>
+      <td>${t.cat}</td>
+      <td>${statusBadge(t.priority)}</td>
+      <td>${statusBadge(t.status)}</td>
+      <td style="color:#9ca3af">${t.date}</td>
+      <td><button class="btn-primary" style="padding:4px 10px;font-size:11px"
+        onclick="openTicketDetailByIndex(${i})">Open</button></td>
+    </tr>`).join('');
+}
+
+function renderClientTickets() {
+  const container = document.getElementById('clientTicketList');
+  if (!container) return;
+  const mine = allTickets.filter(t=>t.client==='Sarah Mitchell');
+  container.innerHTML = mine.length === 0
+    ? '<p style="text-align:center;color:#9ca3af;padding:32px">No tickets yet</p>'
+    : mine.map((t,i)=>`
+      <div class="ticket-card" onclick="openTicketDetailByIndex(${allTickets.indexOf(t)})">
+        <div>
+          <p style="font-size:10px;color:#9ca3af;text-transform:uppercase;font-weight:700;margin:0 0 3px">${t.cat}</p>
+          <p style="font-weight:600;font-size:14px;color:#111;margin:0">${t.title}</p>
+          <p style="font-size:11px;color:#9ca3af;margin:4px 0 0">${t.date}</p>
+        </div>
+        <div style="display:flex;gap:6px">${statusBadge(t.priority)}${statusBadge(t.status)}</div>
+      </div>`).join('');
+}
+
+function openTicketDetailByIndex(i) {
+  const t = allTickets[i];
+  if (!t) return;
+  document.getElementById('td_title').textContent = '🎫 ' + t.title;
+  document.getElementById('td_client').textContent = t.client;
+  document.getElementById('td_cat').textContent = t.cat;
+  document.getElementById('td_pri').innerHTML = statusBadge(t.priority);
+  document.getElementById('td_status').innerHTML = statusBadge(t.status);
+  document.getElementById('td_desc').textContent = t.desc;
+  document.getElementById('td_origMsg').textContent = t.desc;
+  document.getElementById('td_newStatus').value = t.status.toLowerCase().replace(' ','_');
+  document.getElementById('td_newPri').value = t.priority.toLowerCase();
+  document.getElementById('td_reply').value = '';
+  // Reset message thread
+  const msgs = document.getElementById('td_msgs');
+  msgs.innerHTML = `<div style="display:flex;gap:10px">
+    <div style="width:30px;height:30px;border-radius:9999px;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#1d4ed8;flex-shrink:0">C</div>
+    <div style="max-width:75%;background:#f3f4f6;border-radius:10px;padding:10px 12px;font-size:13px">
+      <p style="font-size:10px;color:#9ca3af;margin:0 0 4px">Client · ${t.date}</p>
+      <p style="margin:0;line-height:1.5">${t.desc}</p>
+    </div>
+  </div>`;
+  // store current index for updateTicket
+  document.getElementById('ticketDetailModal').dataset.idx = i;
+  openModal('ticketDetailModal');
+}
+
+// ── Screens ───────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function doLogin() {
+  const e = document.getElementById('loginEmail').value;
+  const p = document.getElementById('loginPass').value;
+  if (e === 'admin@accommodation.com' && p === 'password') {
+    toast('Welcome back, Admin! 👋', 'success');
+    setTimeout(()=>showScreen('dash'), 600);
+  } else if (p === 'Welcome@123') {
+    toast('Welcome, Client! 👋', 'success');
+    setTimeout(()=>showScreen('cdash'), 600);
+  } else {
+    toast('Invalid credentials. Try admin@accommodation.com / password', 'error');
+  }
+}
+
+// ── Modals ────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function overlayClose(e, id) { if(e.target.id===id) closeModal(id); }
+
+// ── Toast ─────────────────────────────────
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = (type==='success'?'✅ ':'❌ ') + msg;
+  t.style.background = type==='success'?'#059669':'#dc2626';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+// ── Badge helper ──────────────────────────
+function statusBadge(s) {
+  const map={Active:'success',Available:'success',Resolved:'success',
+             Pending:'warning','In Progress':'warning',
+             Inactive:'danger',Urgent:'danger',
+             Open:'info',Medium:'info',Occupied:'info',
+             Low:'gray',Maintenance:'orange',Exited:'gray',Closed:'gray'};
+  return `<span class="badge ${map[s]||'gray'}">${s}</span>`;
+}
+
+// ── Clients ───────────────────────────────
+function renderClients(list) {
+  const tbody = document.getElementById('clientTableBody');
+  tbody.innerHTML = list.map(c=>`
+    <tr data-name="${c.name}" data-status="${c.status}">
+      <td><b>${c.name}</b></td><td>${c.email}</td><td>${c.phone}</td>
+      <td>${c.ndis}</td><td>${c.property}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td><button class="btn-secondary" style="padding:4px 10px;font-size:11px"
+        onclick="openEditClient('${c.name}','${c.email}','${c.phone}','${c.ndis}','${c.status}')">✏️ Edit</button></td>
+    </tr>`).join('');
+  document.getElementById('clientCount').textContent = list.length + ' records';
+}
+
+function filterClients(q) {
+  const q2 = q.toLowerCase();
+  const filtered = clients.filter(c=>c.name.toLowerCase().includes(q2)||c.email.toLowerCase().includes(q2));
+  renderClients(filtered);
+}
+function filterClientStatus(s) {
+  const filtered = s ? clients.filter(c=>c.status===s) : clients;
+  renderClients(filtered);
+}
+
+function saveNewClient() {
+  const fn = document.getElementById('ac_fn').value.trim();
+  const ln = document.getElementById('ac_ln').value.trim();
+  const em = document.getElementById('ac_em').value.trim();
+  if (!fn||!ln||!em) { toast('Please fill in all required fields','error'); return; }
+  const newClient = {
+    name:`${fn} ${ln}`, email:em,
+    phone:document.getElementById('ac_ph').value||'—',
+    ndis:document.getElementById('ac_ndis').value||'—',
+    property:'—',
+    status:document.getElementById('ac_st').value==='active'?'Active':
+           document.getElementById('ac_st').value==='pending'?'Pending':'Inactive'
+  };
+  clients.push(newClient);
+  renderClients(clients);
+  closeModal('addClientModal');
+  // clear form
+  ['ac_fn','ac_ln','ac_em','ac_ph','ac_ndis','ac_sn','ac_no'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ac_st').value='active';
+  toast(`Client ${fn} ${ln} created successfully!`);
+  document.getElementById('sc1').textContent = parseInt(document.getElementById('sc1').textContent)+1;
+}
+
+function openEditClient(name,email,phone,ndis,status) {
+  currentEditClient = name;
+  document.getElementById('ec_fn').value = name.split(' ')[0];
+  document.getElementById('ec_ln').value = name.split(' ').slice(1).join(' ');
+  document.getElementById('ec_em').value = email;
+  document.getElementById('ec_ph').value = phone;
+  document.getElementById('ec_ndis').value = ndis==='—'?'':ndis;
+  document.getElementById('ec_st').value = status.toLowerCase();
+  openModal('editClientModal');
+}
+
+function saveEditClient() {
+  const fn = document.getElementById('ec_fn').value.trim();
+  const ln = document.getElementById('ec_ln').value.trim();
+  const status = document.getElementById('ec_st').value;
+  const statusLabel = status==='active'?'Active':status==='pending'?'Pending':status==='exited'?'Exited':'Inactive';
+  const idx = clients.findIndex(c=>c.name===currentEditClient);
+  if (idx>=0) {
+    clients[idx].name = fn+' '+ln;
+    clients[idx].email = document.getElementById('ec_em').value;
+    clients[idx].phone = document.getElementById('ec_ph').value||'—';
+    clients[idx].ndis  = document.getElementById('ec_ndis').value||'—';
+    clients[idx].status = statusLabel;
+    renderClients(clients);
+  }
+  closeModal('editClientModal');
+  toast(`${fn} ${ln} updated successfully!`);
+}
+
+// ── Properties ────────────────────────────
+function renderProperties() {
+  const grid = document.getElementById('propertyGrid');
+  const icons = {house:'🏠','semi-detached':'🏡',detached:'🏡',terraced:'🏠',flat:'🏢',apartment:'🏢',bungalow:'🏡',studio:'🏢',bedsit:'🏢',maisonette:'🏠',unit:'🏬',townhouse:'🏡'};
+  grid.innerHTML = properties.map((p,i)=>`
+    <div class="prop-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="background:#dbeafe;width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px">${icons[p.type]||'🏠'}</div>
+          <div><p style="font-weight:600;font-size:13px;color:#111;margin:0">${p.addr}</p><p style="font-size:11px;color:#9ca3af;margin:0">${p.suburb}, ${p.pc}</p></div>
+        </div>
+        ${statusBadge(p.status)}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);text-align:center;background:#f9fafb;border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;color:#6b7280">
+        <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">${p.bed}</p>Beds</div>
+        <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">${p.bath}</p>Baths</div>
+        <div><p style="font-weight:700;font-size:15px;color:#111;margin:0">${p.occ}/${p.cap}</p>Occupied</div>
+      </div>
+      <p style="font-size:13px;font-weight:500;color:#374151;margin:0 0 12px">£${p.rent.toLocaleString()}/mo</p>
+      <button class="btn-secondary" style="width:100%;font-size:12px;padding:7px"
+        onclick="openEditProperty('${p.addr}','${p.suburb}','${p.state}','${p.pc}','${p.type}','${p.bed}','${p.bath}','${p.cap}','${p.status}','${p.rent}','${p.desc}')">✏️ Edit Property</button>
+    </div>`).join('');
+  document.getElementById('propCount').textContent = properties.length + ' properties';
+}
+
+function saveNewProperty() {
+  const addr = document.getElementById('ap_addr').value.trim();
+  const sub  = document.getElementById('ap_sub').value.trim();
+  const st   = document.getElementById('ap_st').value;
+  const pc   = document.getElementById('ap_pc').value.trim();
+  if (!addr||!sub||!pc) { toast('Please fill in address, town/city and postcode','error'); return; }
+  properties.push({
+    addr,suburb:sub,state:st,pc,
+    type:document.getElementById('ap_type').value,
+    bed:parseInt(document.getElementById('ap_bed').value)||0,
+    bath:parseInt(document.getElementById('ap_bath').value)||0,
+    cap:parseInt(document.getElementById('ap_cap').value)||1,
+    occ:0,
+    status:document.getElementById('ap_status').value==='available'?'Available':
+           document.getElementById('ap_status').value==='occupied'?'Occupied':
+           document.getElementById('ap_status').value==='maintenance'?'Maintenance':'Inactive',
+    rent:parseInt(document.getElementById('ap_rent').value)||0,
+    desc:document.getElementById('ap_desc').value
+  });
+  renderProperties();
+  closeModal('addPropertyModal');
+  ['ap_addr','ap_sub','ap_pc','ap_rent','ap_desc'].forEach(id=>document.getElementById(id).value='');
+  toast(`Property at ${addr} created successfully!`);
+  document.getElementById('sc2').textContent = parseInt(document.getElementById('sc2').textContent)+1;
+}
+
+function openEditProperty(addr,suburb,state,pc,type,bed,bath,cap,status,rent,desc) {
+  currentEditProp = addr;
+  document.getElementById('ep_addr').value=addr;
+  document.getElementById('ep_sub').value=suburb;
+  document.getElementById('ep_st').value=state;
+  document.getElementById('ep_pc').value=pc;
+  document.getElementById('ep_type').value=type;
+  document.getElementById('ep_bed').value=bed;
+  document.getElementById('ep_bath').value=bath;
+  document.getElementById('ep_cap').value=cap;
+  document.getElementById('ep_status').value=status.toLowerCase();
+  document.getElementById('ep_rent').value=rent;
+  document.getElementById('ep_desc').value=desc;
+  openModal('editPropertyModal');
+}
+
+function saveEditProperty() {
+  const addr = document.getElementById('ep_addr').value.trim();
+  const suburb = document.getElementById('ep_sub').value.trim();
+  const state = document.getElementById('ep_st').value;
+  const pc = document.getElementById('ep_pc').value.trim();
+  const statusVal = document.getElementById('ep_status').value;
+  const statusLabel = statusVal==='available'?'Available':statusVal==='occupied'?'Occupied':statusVal==='maintenance'?'Maintenance':'Inactive';
+  const idx = properties.findIndex(p=>p.addr===currentEditProp);
+  if (idx>=0) {
+    properties[idx] = {
+      addr,suburb,state,pc,
+      type:document.getElementById('ep_type').value,
+      bed:parseInt(document.getElementById('ep_bed').value)||0,
+      bath:parseInt(document.getElementById('ep_bath').value)||0,
+      cap:parseInt(document.getElementById('ep_cap').value)||1,
+      occ:properties[idx].occ,
+      status:statusLabel,
+      rent:parseInt(document.getElementById('ep_rent').value)||0,
+      desc:document.getElementById('ep_desc').value
+    };
+    renderProperties();
+  }
+  closeModal('editPropertyModal');
+  toast(`Property "${addr}" updated successfully!`);
+}
+
+// ── Tickets ───────────────────────────────
+function openTicketDetail(title,client,cat,priority,status,desc) {
+  document.getElementById('td_title').textContent = '🎫 ' + title;
+  document.getElementById('td_client').textContent = client;
+  document.getElementById('td_cat').textContent = cat;
+  document.getElementById('td_pri').innerHTML = statusBadge(priority);
+  document.getElementById('td_status').innerHTML = statusBadge(status);
+  document.getElementById('td_desc').textContent = desc;
+  document.getElementById('td_origMsg').textContent = desc;
+  document.getElementById('td_newStatus').value = status.toLowerCase().replace(' ','_');
+  document.getElementById('td_newPri').value = priority.toLowerCase();
+  document.getElementById('td_reply').value = '';
+  openModal('ticketDetailModal');
+}
+
+function updateTicket() {
+  const s = document.getElementById('td_newStatus').value;
+  const p = document.getElementById('td_newPri').value;
+  const assign = document.getElementById('td_assign');
+  const sLabel = s==='open'?'Open':s==='in_progress'?'In Progress':s==='pending_client'?'Awaiting Client':s==='resolved'?'Resolved':'Closed';
+  const pLabel = p.charAt(0).toUpperCase()+p.slice(1);
+  // save back to store
+  const idx = parseInt(document.getElementById('ticketDetailModal').dataset.idx);
+  if (!isNaN(idx) && allTickets[idx]) {
+    allTickets[idx].status   = sLabel;
+    allTickets[idx].priority = pLabel;
+    renderAdminTickets();
+    renderClientTickets();
+  }
+  document.getElementById('td_status').innerHTML = statusBadge(sLabel);
+  document.getElementById('td_pri').innerHTML    = statusBadge(pLabel);
+  const assignName = assign.options[assign.selectedIndex].text;
+  toast('Ticket updated: ' + sLabel + ' · ' + pLabel + (assign.value ? ' → ' + assignName : ''));
+}
+
+function sendReply() {
+  const msg = document.getElementById('td_reply').value.trim();
+  if (!msg) return;
+  const isInternal = document.getElementById('td_internal').checked;
+  const msgs = document.getElementById('td_msgs');
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:10px;flex-direction:row-reverse';
+  div.innerHTML = `<div style="width:30px;height:30px;border-radius:9999px;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#1d4ed8;flex-shrink:0">A</div>
+    <div style="max-width:75%;${isInternal?'background:#fef9c3;border:1px solid #fde047;':'background:#dbeafe;'}border-radius:10px;padding:10px 12px;font-size:13px">
+      <p style="font-size:10px;color:#9ca3af;margin:0 0 4px">Admin${isInternal?' (Internal)':''} · Just now</p>
+      <p style="margin:0;line-height:1.5">${msg}</p>
+    </div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  document.getElementById('td_reply').value = '';
+  toast(isInternal ? 'Internal note saved 🔒' : 'Reply sent to client ✉️');
+}
+
+// ── Reports ───────────────────────────────
+function renderReports() {
+  const tbody = document.getElementById('reportTableBody');
+  if (!tbody) return;
+  const typeLabel = {case_note:'Case Note',incident:'Incident',progress:'Progress',assessment:'Assessment',exit:'Exit',other:'Other'};
+  tbody.innerHTML = reports.map((r,i)=>`
+    <tr>
+      <td><b>📄 ${r.title}</b></td>
+      <td>${r.client||'—'}</td>
+      <td>${typeLabel[r.type]||r.type}</td>
+      <td>${r.author||'J. Smith'}</td>
+      <td style="color:#9ca3af">${r.date||'07 May 2025'}</td>
+      <td><button class="btn-secondary" style="padding:4px 10px;font-size:11px"
+        onclick="openEditReportByIndex(${i})">✏️ Edit</button></td>
+    </tr>`).join('');
+  const cnt = document.getElementById('reportCount');
+  if (cnt) cnt.textContent = reports.length + ' reports';
+}
+
+function saveNewReport() {
+  const title = document.getElementById('ar_title').value.trim();
+  const content = document.getElementById('ar_content').value.trim();
+  if (!title) { toast('Please enter a report title','error'); return; }
+  if (!content) { toast('Please enter the report content','error'); return; }
+  const now = new Date().toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'});
+  reports.unshift({
+    title, content,
+    client: document.getElementById('ar_client').value || '—',
+    type:   document.getElementById('ar_type').value,
+    author: 'System Admin (You)',
+    date:   now
+  });
+  renderReports();
+  closeModal('addReportModal');
+  document.getElementById('ar_title').value   = '';
+  document.getElementById('ar_content').value = '';
+  document.getElementById('ar_client').value  = '';
+  document.getElementById('ar_conf').checked  = false;
+  toast('Report "' + title + '" created successfully!');
+}
+
+function openEditReportByIndex(i) {
+  currentEditReport = i;
+  const r = reports[i];
+  document.getElementById('er_title').value   = r.title;
+  document.getElementById('er_content').value = r.content;
+  document.getElementById('er_client').value  = r.client === '—' ? '' : r.client;
+  document.getElementById('er_type').value    = r.type;
+  openModal('editReportModal');
+}
+
+// keep old signature for static rows already in HTML
+function openEditReport(title, client, type, content) {
+  const idx = reports.findIndex(r=>r.title===title);
+  if (idx>=0) { openEditReportByIndex(idx); return; }
+  currentEditReport = -1;
+  document.getElementById('er_title').value   = title;
+  document.getElementById('er_content').value = content;
+  document.getElementById('er_client').value  = client;
+  document.getElementById('er_type').value    = type;
+  openModal('editReportModal');
+}
+
+function saveEditReport() {
+  const title = document.getElementById('er_title').value.trim();
+  const content = document.getElementById('er_content').value.trim();
+  if (!title)   { toast('Title is required','error'); return; }
+  if (!content) { toast('Content is required','error'); return; }
+  const i = currentEditReport;
+  if (typeof i === 'number' && i >= 0 && i < reports.length) {
+    reports[i].title   = title;
+    reports[i].content = content;
+    reports[i].client  = document.getElementById('er_client').value || '—';
+    reports[i].type    = document.getElementById('er_type').value;
+  }
+  renderReports();
+  closeModal('editReportModal');
+  toast('Report updated successfully!');
+}
+
+// ── Client ticket ─────────────────────────
+let selectedCat = 'general'; // default category
+let selectedPri = 'medium';
+function selectCat(el) {
+  document.querySelectorAll('.cat-btn').forEach(b=>{b.style.borderColor='#e5e7eb';b.style.background='';});
+  el.style.borderColor='#0d9488'; el.style.background='#f0fdfa';
+  selectedCat = el.dataset.val;
+}
+function selectPri(el) {
+  document.querySelectorAll('.pri-btn').forEach(b=>{b.style.borderColor='#e5e7eb';b.style.background='';b.style.color='#6b7280';b.classList.remove('selected');});
+  el.style.borderColor='#2563eb'; el.style.background='#dbeafe'; el.style.color='#1d4ed8';
+  selectedPri = el.dataset.val;
+}
+function submitTicket() {
+  const title = document.getElementById('ticketTitle').value.trim();
+  const desc  = document.getElementById('ticketDesc').value.trim();
+  if (!title) { toast('Please enter a subject for your request','error'); return; }
+  if (!desc)  { toast('Please describe your request in the details field','error'); return; }
+  // Add to tickets list and render
+  const catLabel = selectedCat ? selectedCat.charAt(0).toUpperCase()+selectedCat.slice(1) : 'General';
+  const priLabel = selectedPri ? selectedPri.charAt(0).toUpperCase()+selectedPri.slice(1) : 'Medium';
+  allTickets.unshift({title, desc, cat:catLabel, priority:priLabel, status:'Open', client:'Sarah Mitchell', date:'Just now'});
+  renderClientTickets();
+  renderAdminTickets();
+  toast('Your request has been submitted! We\'ll be in touch soon. 🎫');
+  document.getElementById('ticketTitle').value='';
+  document.getElementById('ticketDesc').value='';
+  selectedCat='general';
+  document.querySelectorAll('.cat-btn').forEach(b=>{b.style.borderColor='#e5e7eb';b.style.background='';});
+  document.getElementById('sc3').textContent = parseInt(document.getElementById('sc3').textContent)+1;
+  document.getElementById('sc4').textContent = parseInt(document.getElementById('sc4').textContent)+1;
+  setTimeout(()=>showScreen('ctickets'), 900);
+}
+
+// ── Client profile ────────────────────────
+function saveProfile() {
+  document.getElementById('pfFirstName').textContent = document.getElementById('ep2_fn').value;
+  document.getElementById('pfLastName').textContent  = document.getElementById('ep2_ln').value;
+  document.getElementById('pfPhone').textContent     = document.getElementById('ep2_ph').value;
+  document.getElementById('pfEcName').textContent    = document.getElementById('ep2_ecn').value;
+  document.getElementById('pfEcPhone').textContent   = document.getElementById('ep2_ecp').value;
+  document.getElementById('pfEcRel').textContent     = document.getElementById('ep2_ecr').value;
+  closeModal('editProfileModal');
+  toast('Profile updated successfully!');
+}
+
+// ── Checklists ────────────────────────────
+const checklistTemplate = [
+  { category: '🔥 Fire Safety', items: [
+    'Smoke alarms present and tested',
+    'Fire extinguisher accessible and in-date',
+    'Fire blanket present in kitchen area',
+    'Fire exits clearly marked and unobstructed',
+    'Fire doors operational and self-closing',
+    'Emergency evacuation plan posted',
+  ]},
+  { category: '⚡ Electrical', items: [
+    'No exposed or damaged wiring visible',
+    'Switchboard / circuit breakers in good condition',
+    'RCD (safety switch) tested and functional',
+    'Power outlets working and undamaged',
+    'No overloaded power boards in use',
+    'Adequate lighting in all rooms',
+  ]},
+  { category: '🏗️ Structural & Building', items: [
+    'No signs of water damage or mould',
+    'Roof and ceiling in good condition',
+    'Walls and floors free of significant damage',
+    'Windows open, close and lock correctly',
+    'External doors lock securely',
+    'No trip hazards in common areas or hallways',
+  ]},
+  { category: '🧹 Cleanliness & Hygiene', items: [
+    'Property generally clean and tidy',
+    'Kitchen clean and fully functional',
+    'Bathrooms clean — no mould or blockages',
+    'No signs of pest or vermin infestation',
+    'Waste bins provided and accessible',
+    'Garden / exterior well-maintained',
+  ]},
+  { category: '🔧 Appliances & Utilities', items: [
+    'Hot water system operational',
+    'Heating / cooling system working',
+    'Stove / oven functional',
+    'Refrigerator working (if provided)',
+    'Laundry facilities operational',
+    'All taps and plumbing functional — no leaks',
+  ]},
+  { category: '🔐 Security', items: [
+    'All entry door locks functional',
+    'Window locks operational',
+    'Exterior lighting working',
+    'Fencing / gates secure (if applicable)',
+  ]},
+];
+
+let inspections = [
+  {
+    property: '14 Ashdown Crescent, Manchester', date: '01 May 2025',
+    inspector: 'J. Smith', type: 'Routine', result: 'Pass with Issues',
+    passCount: 32, failCount: 2,
+    notes: 'Smoke alarm in bedroom 2 needs battery replacement. Minor mould in bathroom — treatment scheduled.',
+    items: [
+      {cat:'🔥 Fire Safety', label:'Smoke alarms present and tested', result:'fail', notes:'Bedroom 2 alarm — dead battery'},
+      {cat:'🔥 Fire Safety', label:'Fire extinguisher accessible and in-date', result:'pass', notes:''},
+      {cat:'🔥 Fire Safety', label:'Fire blanket present in kitchen area', result:'pass', notes:''},
+      {cat:'🔥 Fire Safety', label:'Fire exits clearly marked and unobstructed', result:'pass', notes:''},
+      {cat:'🔥 Fire Safety', label:'Fire doors operational and self-closing', result:'pass', notes:''},
+      {cat:'🔥 Fire Safety', label:'Emergency evacuation plan posted', result:'pass', notes:''},
+      {cat:'⚡ Electrical', label:'No exposed or damaged wiring visible', result:'pass', notes:''},
+      {cat:'⚡ Electrical', label:'Switchboard / circuit breakers in good condition', result:'pass', notes:''},
+      {cat:'⚡ Electrical', label:'RCD (safety switch) tested and functional', result:'pass', notes:''},
+      {cat:'⚡ Electrical', label:'Power outlets working and undamaged', result:'pass', notes:''},
+      {cat:'⚡ Electrical', label:'No overloaded power boards in use', result:'pass', notes:''},
+      {cat:'⚡ Electrical', label:'Adequate lighting in all rooms', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'No signs of water damage or mould', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'Roof and ceiling in good condition', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'Walls and floors free of significant damage', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'Windows open, close and lock correctly', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'External doors lock securely', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'No trip hazards in common areas or hallways', result:'pass', notes:''},
+      {cat:'🧹 Cleanliness & Hygiene', label:'Property generally clean and tidy', result:'pass', notes:''},
+      {cat:'🧹 Cleanliness & Hygiene', label:'Kitchen clean and fully functional', result:'pass', notes:''},
+      {cat:'🧹 Cleanliness & Hygiene', label:'Bathrooms clean — no mould or blockages', result:'fail', notes:'Minor mould on ceiling — treatment scheduled'},
+      {cat:'🧹 Cleanliness & Hygiene', label:'No signs of pest or vermin infestation', result:'pass', notes:''},
+      {cat:'🧹 Cleanliness & Hygiene', label:'Waste bins provided and accessible', result:'pass', notes:''},
+      {cat:'🧹 Cleanliness & Hygiene', label:'Garden / exterior well-maintained', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'Hot water system operational', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'Heating / cooling system working', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'Stove / oven functional', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'Refrigerator working (if provided)', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'Laundry facilities operational', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'All taps and plumbing functional — no leaks', result:'pass', notes:''},
+      {cat:'🔐 Security', label:'All entry door locks functional', result:'pass', notes:''},
+      {cat:'🔐 Security', label:'Window locks operational', result:'pass', notes:''},
+      {cat:'🔐 Security', label:'Exterior lighting working', result:'pass', notes:''},
+      {cat:'🔐 Security', label:'Fencing / gates secure (if applicable)', result:'na', notes:'N/A — apartment block'},
+    ]
+  },
+  {
+    property: '33 Birchwood Drive, Birmingham', date: '15 Apr 2025',
+    inspector: 'M. Lee', type: 'Routine', result: 'Fail',
+    passCount: 28, failCount: 6,
+    notes: 'Multiple electrical hazards and fire safety deficiencies identified. Work orders raised. Property flagged for urgent maintenance follow-up.',
+    items: [
+      {cat:'🔥 Fire Safety', label:'Smoke alarms present and tested', result:'fail', notes:'2 alarms missing batteries'},
+      {cat:'🔥 Fire Safety', label:'Fire extinguisher accessible and in-date', result:'fail', notes:'Expired — last service Nov 2023'},
+      {cat:'🔥 Fire Safety', label:'Fire blanket present in kitchen area', result:'pass', notes:''},
+      {cat:'🔥 Fire Safety', label:'Fire exits clearly marked and unobstructed', result:'pass', notes:''},
+      {cat:'🔥 Fire Safety', label:'Fire doors operational and self-closing', result:'fail', notes:'Door closer broken on bedroom 1 fire door'},
+      {cat:'🔥 Fire Safety', label:'Emergency evacuation plan posted', result:'pass', notes:''},
+      {cat:'⚡ Electrical', label:'No exposed or damaged wiring visible', result:'fail', notes:'Exposed wire behind TV unit in lounge'},
+      {cat:'⚡ Electrical', label:'Switchboard / circuit breakers in good condition', result:'pass', notes:''},
+      {cat:'⚡ Electrical', label:'RCD (safety switch) tested and functional', result:'fail', notes:'RCD tripped and not reset — electrician required'},
+      {cat:'⚡ Electrical', label:'Power outlets working and undamaged', result:'pass', notes:''},
+      {cat:'⚡ Electrical', label:'No overloaded power boards in use', result:'fail', notes:'Lounge room — daisy-chained boards'},
+      {cat:'⚡ Electrical', label:'Adequate lighting in all rooms', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'No signs of water damage or mould', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'Roof and ceiling in good condition', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'Walls and floors free of significant damage', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'Windows open, close and lock correctly', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'External doors lock securely', result:'pass', notes:''},
+      {cat:'🏗️ Structural & Building', label:'No trip hazards in common areas or hallways', result:'pass', notes:''},
+      {cat:'🧹 Cleanliness & Hygiene', label:'Property generally clean and tidy', result:'pass', notes:''},
+      {cat:'🧹 Cleanliness & Hygiene', label:'Kitchen clean and fully functional', result:'pass', notes:''},
+      {cat:'🧹 Cleanliness & Hygiene', label:'Bathrooms clean — no mould or blockages', result:'pass', notes:''},
+      {cat:'🧹 Cleanliness & Hygiene', label:'No signs of pest or vermin infestation', result:'pass', notes:''},
+      {cat:'🧹 Cleanliness & Hygiene', label:'Waste bins provided and accessible', result:'pass', notes:''},
+      {cat:'🧹 Cleanliness & Hygiene', label:'Garden / exterior well-maintained', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'Hot water system operational', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'Heating / cooling system working', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'Stove / oven functional', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'Refrigerator working (if provided)', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'Laundry facilities operational', result:'pass', notes:''},
+      {cat:'🔧 Appliances & Utilities', label:'All taps and plumbing functional — no leaks', result:'pass', notes:''},
+      {cat:'🔐 Security', label:'All entry door locks functional', result:'pass', notes:''},
+      {cat:'🔐 Security', label:'Window locks operational', result:'pass', notes:''},
+      {cat:'🔐 Security', label:'Exterior lighting working', result:'pass', notes:''},
+      {cat:'🔐 Security', label:'Fencing / gates secure (if applicable)', result:'pass', notes:''},
+    ]
+  },
+  {
+    property: 'Flat 7, 42 Victoria Road, London', date: '20 Apr 2025',
+    inspector: 'J. Smith', type: 'Move-in', result: 'Pass',
+    passCount: 33, failCount: 0,
+    notes: 'Property in excellent condition. Ready for new tenant.',
+    items: checklistTemplate.flatMap(cat => cat.items.map(label => ({cat: cat.category, label, result:'pass', notes:''})))
+  },
+];
+
+function inspResultBadge(r) {
+  if (r === 'Pass')             return `<span class="badge success">✅ Pass</span>`;
+  if (r === 'Pass with Issues') return `<span class="badge warning">⚠️ Pass with Issues</span>`;
+  if (r === 'Fail')             return `<span class="badge danger">❌ Fail</span>`;
+  return `<span class="badge gray">${r}</span>`;
+}
+
+function renderInspections() {
+  const filterProp   = document.getElementById('cl_filterProp')   ? document.getElementById('cl_filterProp').value   : '';
+  const filterResult = document.getElementById('cl_filterResult') ? document.getElementById('cl_filterResult').value : '';
+
+  const filtered = inspections.filter(i =>
+    (!filterProp   || i.property === filterProp) &&
+    (!filterResult || i.result   === filterResult)
+  );
+
+  const tbody = document.getElementById('inspTableBody');
+  if (tbody) {
+    tbody.innerHTML = filtered.length === 0
+      ? `<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:28px">No inspections found</td></tr>`
+      : filtered.map(insp => {
+          const realIdx = inspections.indexOf(insp);
+          return `<tr>
+            <td><b>${insp.property}</b><br><span style="font-size:11px;color:#9ca3af">${insp.type || 'Routine'}</span></td>
+            <td style="white-space:nowrap">${insp.date}</td>
+            <td>${insp.inspector}</td>
+            <td style="text-align:center;font-weight:700;color:#059669">${insp.passCount}</td>
+            <td style="text-align:center;font-weight:700;color:${insp.failCount>0?'#dc2626':'#9ca3af'}">${insp.failCount}</td>
+            <td>${inspResultBadge(insp.result)}</td>
+            <td><button class="btn-secondary" style="padding:3px 9px;font-size:11px" onclick="viewInspectionByIndex(${realIdx})">👁 View</button></td>
+          </tr>`;
+        }).join('');
+  }
+
+  // Update stat cards
+  const total  = inspections.length;
+  const passed = inspections.filter(i=>i.result==='Pass').length;
+  const issues = inspections.filter(i=>i.result==='Pass with Issues').length;
+  const failed = inspections.filter(i=>i.result==='Fail').length;
+  const el = id => document.getElementById(id);
+  if (el('ci_total'))  el('ci_total').textContent  = total;
+  if (el('ci_pass'))   el('ci_pass').textContent   = passed;
+  if (el('ci_issues')) el('ci_issues').textContent = issues;
+  if (el('ci_fail'))   el('ci_fail').textContent   = failed;
+  if (el('inspCount')) el('inspCount').textContent = total + ' inspection' + (total!==1?'s':'');
+}
+
+function openStartInspection() {
+  // Set default date to today
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('si_date').value     = today;
+  document.getElementById('si_inspector').value = '';
+  document.getElementById('si_property').value  = '';
+  document.getElementById('si_notes').value     = '';
+
+  // Generate checklist items dynamically
+  const container = document.getElementById('inspChecklistItems');
+  container.innerHTML = checklistTemplate.map((cat, ci) => `
+    <div style="margin-bottom:24px">
+      <h4 style="font-size:13px;font-weight:700;color:#111;margin:0 0 10px;padding:8px 12px;background:#f8fafc;border-radius:8px;border-left:3px solid #0d9488">${cat.category}</h4>
+      ${cat.items.map((item, ii) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #f3f4f6">
+          <div style="flex:1;font-size:13px;color:#374151;min-width:0">${item}</div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <label style="display:flex;align-items:center;gap:3px;font-size:12px;font-weight:600;color:#059669;cursor:pointer;white-space:nowrap">
+              <input type="radio" name="ci_${ci}_${ii}" value="pass" checked style="accent-color:#059669;width:13px;height:13px"> Pass
+            </label>
+            <label style="display:flex;align-items:center;gap:3px;font-size:12px;font-weight:600;color:#dc2626;cursor:pointer;white-space:nowrap">
+              <input type="radio" name="ci_${ci}_${ii}" value="fail" style="accent-color:#dc2626;width:13px;height:13px"> Fail
+            </label>
+            <label style="display:flex;align-items:center;gap:3px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;white-space:nowrap">
+              <input type="radio" name="ci_${ci}_${ii}" value="na" style="accent-color:#6b7280;width:13px;height:13px"> N/A
+            </label>
+          </div>
+          <input type="text" id="ci_note_${ci}_${ii}" placeholder="Notes…"
+            style="width:150px;padding:4px 7px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;color:#6b7280;flex-shrink:0"/>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  openModal('startInspModal');
+}
+
+function submitInspection() {
+  const property  = document.getElementById('si_property').value;
+  const inspector = document.getElementById('si_inspector').value.trim();
+  const dateVal   = document.getElementById('si_date').value;
+  const type      = document.getElementById('si_type').value;
+  const overallNotes = document.getElementById('si_notes').value.trim();
+
+  if (!property)  { toast('Please select a property','error'); return; }
+  if (!inspector) { toast('Please enter the inspector name','error'); return; }
+
+  let items = [];
+  let passCount = 0, failCount = 0, naCount = 0;
+
+  checklistTemplate.forEach((cat, ci) => {
+    cat.items.forEach((label, ii) => {
+      const sel = document.querySelector(`input[name="ci_${ci}_${ii}"]:checked`);
+      const result = sel ? sel.value : 'pass';
+      const notes  = document.getElementById(`ci_note_${ci}_${ii}`) ? document.getElementById(`ci_note_${ci}_${ii}`).value.trim() : '';
+      items.push({ cat: cat.category, label, result, notes });
+      if (result === 'pass') passCount++;
+      else if (result === 'fail') failCount++;
+      else naCount++;
+    });
+  });
+
+  const hasNotes = items.some(i => i.notes);
+  const result = failCount > 0 ? 'Fail' : hasNotes ? 'Pass with Issues' : 'Pass';
+
+  const dateStr = dateVal
+    ? new Date(dateVal).toLocaleDateString('en-AU', {day:'2-digit',month:'short',year:'numeric'})
+    : 'Today';
+
+  inspections.unshift({ property, inspector, date: dateStr, type, result, passCount, failCount, notes: overallNotes, items });
+  renderInspections();
+  closeModal('startInspModal');
+
+  const resultMsg = result === 'Fail'
+    ? `Inspection saved — ${failCount} issue(s) flagged!`
+    : result === 'Pass with Issues'
+    ? 'Inspection saved — Pass with notes recorded.'
+    : 'Inspection saved — All items passed!';
+  toast(resultMsg, result === 'Fail' ? 'error' : 'success');
+}
+
+function viewInspectionByIndex(i) {
+  const insp = inspections[i];
+  document.getElementById('viewInspTitle').textContent = `Inspection — ${insp.property}`;
+
+  // Group items by category
+  const grouped = {};
+  insp.items.forEach(item => {
+    if (!grouped[item.cat]) grouped[item.cat] = [];
+    grouped[item.cat].push(item);
+  });
+
+  const resultColors = { pass: '#059669', fail: '#dc2626', na: '#9ca3af' };
+  const resultLabels = { pass: '✅ Pass', fail: '❌ Fail', na: '— N/A' };
+
+  let html = `
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;padding:14px;background:#f8fafc;border-radius:10px">
+      <div><p style="font-size:11px;color:#6b7280;margin:0">Property</p><p style="font-weight:600;font-size:13px;color:#111;margin:2px 0 0">${insp.property}</p></div>
+      <div><p style="font-size:11px;color:#6b7280;margin:0">Date</p><p style="font-weight:600;font-size:13px;color:#111;margin:2px 0 0">${insp.date}</p></div>
+      <div><p style="font-size:11px;color:#6b7280;margin:0">Inspector</p><p style="font-weight:600;font-size:13px;color:#111;margin:2px 0 0">${insp.inspector}</p></div>
+      <div><p style="font-size:11px;color:#6b7280;margin:0">Type</p><p style="font-weight:600;font-size:13px;color:#111;margin:2px 0 0">${insp.type || 'Routine'}</p></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px">
+      ${inspResultBadge(insp.result)}
+      <span style="font-size:12px;color:#6b7280">${insp.passCount} passed &nbsp;·&nbsp; <span style="color:#dc2626">${insp.failCount} failed</span></span>
+    </div>
+    ${insp.notes ? `<div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-bottom:18px;font-size:13px;color:#92400e"><b>📋 Notes:</b> ${insp.notes}</div>` : ''}
+  `;
+
+  Object.entries(grouped).forEach(([catName, catItems]) => {
+    const catFail = catItems.filter(x=>x.result==='fail').length;
+    html += `
+      <div style="margin-bottom:18px">
+        <h4 style="font-size:12px;font-weight:700;color:#111;margin:0 0 8px;padding:6px 10px;background:${catFail>0?'#fff1f2':'#f0fdf4'};border-radius:7px;border-left:3px solid ${catFail>0?'#f87171':'#4ade80'}">${catName}</h4>
+        ${catItems.map(item => `
+          <div style="display:flex;align-items:flex-start;gap:10px;padding:7px 4px;border-bottom:1px solid #f9fafb">
+            <span style="font-size:12px;font-weight:700;color:${resultColors[item.result]||'#6b7280'};flex-shrink:0;width:62px">${resultLabels[item.result]||item.result}</span>
+            <div style="flex:1">
+              <p style="font-size:12px;color:#374151;margin:0">${item.label}</p>
+              ${item.notes ? `<p style="font-size:11px;color:#6b7280;margin:2px 0 0;font-style:italic">${item.notes}</p>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  });
+
+  document.getElementById('viewInspContent').innerHTML = html;
+  openModal('viewInspModal');
+}
+
+// ── Payments ──────────────────────────────
+let bills = [
+  {client:'Sarah Mitchell', cat:'Rent',        amount:1100, month:'May 2025', due:'2025-05-01', status:'Pending', notes:'Terraced house — 14 Ashdown Crescent'},
+  {client:'Sarah Mitchell', cat:'Electricity', amount:118,  month:'May 2025', due:'2025-05-15', status:'Paid',    notes:''},
+  {client:'James Okafor',   cat:'Rent',        amount:1050, month:'May 2025', due:'2025-05-01', status:'Pending', notes:''},
+  {client:'James Okafor',   cat:'Gas',         amount:72,   month:'May 2025', due:'2025-05-20', status:'Overdue', notes:'Reminder sent'},
+  {client:'Emma Clarke',    cat:'Rent',        amount:1400, month:'May 2025', due:'2025-05-01', status:'Paid',    notes:''},
+  {client:'Emma Clarke',    cat:'Internet',    amount:45,   month:'May 2025', due:'2025-05-10', status:'Paid',    notes:''},
+  {client:'Tony Nguyen',    cat:'Rent',        amount:950,  month:'May 2025', due:'2025-05-01', status:'Pending', notes:''},
+  {client:'Tony Nguyen',    cat:'Water',       amount:55,   month:'Apr 2025', due:'2025-04-18', status:'Paid',    notes:''},
+  {client:'Priya Sharma',   cat:'Rent',        amount:900,  month:'May 2025', due:'2025-05-01', status:'Overdue', notes:'Follow up required'},
+];
+
+let benefits = [
+  {client:'Sarah Mitchell', type:'Personal Independence Payment (PIP)', amount:627,  month:'May 2025', received:'2025-05-01', status:'Received', notes:'Enhanced daily living + mobility'},
+  {client:'Sarah Mitchell', type:'Local Housing Allowance (LHA)',       amount:800,  month:'May 2025', received:'2025-05-03', status:'Received', notes:''},
+  {client:'James Okafor',   type:'Employment & Support Allowance (ESA)',amount:442,  month:'May 2025', received:'2025-05-01', status:'Received', notes:'Support group component'},
+  {client:'James Okafor',   type:'Local Housing Allowance (LHA)',       amount:800,  month:'May 2025', received:'',           status:'Pending',  notes:''},
+  {client:'Emma Clarke',    type:'Universal Credit',                    amount:635,  month:'May 2025', received:'2025-05-01', status:'Received', notes:''},
+  {client:'Emma Clarke',    type:'Local Housing Allowance (LHA)',       amount:800,  month:'May 2025', received:'2025-05-03', status:'Received', notes:''},
+  {client:'Tony Nguyen',    type:'Personal Independence Payment (PIP)', amount:627,  month:'May 2025', received:'2025-05-01', status:'Received', notes:''},
+  {client:'Priya Sharma',   type:'Universal Credit',                    amount:570,  month:'May 2025', received:'',           status:'Pending',  notes:'Awaiting assessment outcome'},
+];
+
+let currentEditBill = -1;
+let currentEditBenefit = -1;
+
+function billStatusBadge(s) {
+  const map = {Paid:'success', Received:'success', Pending:'warning', Overdue:'danger', Cancelled:'gray', Waived:'gray'};
+  return `<span class="badge ${map[s]||'gray'}">${s}</span>`;
+}
+
+function renderPayments() {
+  const filterClient = document.getElementById('py_filterClient') ? document.getElementById('py_filterClient').value : '';
+  const filterMonth  = document.getElementById('py_filterMonth')  ? document.getElementById('py_filterMonth').value  : '';
+  const filterType   = document.getElementById('py_filterType')   ? document.getElementById('py_filterType').value   : '';
+
+  const filteredBills = bills.filter(b =>
+    (!filterClient || b.client === filterClient) &&
+    (!filterMonth  || b.month  === filterMonth)  &&
+    (!filterType   || filterType === 'bills' || filterType === '')
+  );
+
+  const filteredBenefits = benefits.filter(b =>
+    (!filterClient || b.client === filterClient) &&
+    (!filterMonth  || b.month  === filterMonth)  &&
+    (!filterType   || filterType === 'benefits' || filterType === '')
+  );
+
+  const showBills    = filterType !== 'benefits';
+  const showBenefits = filterType !== 'bills';
+
+  // Bills table
+  const billsTbody = document.getElementById('billsTableBody');
+  if (billsTbody) {
+    const rowBills = showBills ? filteredBills : [];
+    billsTbody.innerHTML = rowBills.length === 0
+      ? `<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:20px">No bills found</td></tr>`
+      : rowBills.map((b, i) => {
+          const realIdx = bills.indexOf(b);
+          return `<tr>
+            <td style="font-weight:600">${b.client}</td>
+            <td>${b.cat}</td>
+            <td style="font-weight:600">$${parseFloat(b.amount).toFixed(2)}</td>
+            <td>${b.month}</td>
+            <td>${billStatusBadge(b.status)}</td>
+            <td><button class="btn-secondary" style="padding:3px 9px;font-size:11px" onclick="openEditBillByIndex(${realIdx})">✏️ Edit</button></td>
+          </tr>`;
+        }).join('');
+  }
+
+  // Benefits table
+  const benefitsTbody = document.getElementById('benefitsTableBody');
+  if (benefitsTbody) {
+    const rowBenefits = showBenefits ? filteredBenefits : [];
+    benefitsTbody.innerHTML = rowBenefits.length === 0
+      ? `<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:20px">No benefits found</td></tr>`
+      : rowBenefits.map((b) => {
+          const realIdx = benefits.indexOf(b);
+          return `<tr>
+            <td style="font-weight:600">${b.client}</td>
+            <td style="font-size:12px">${b.type}</td>
+            <td style="font-weight:600;color:#059669">$${parseFloat(b.amount).toFixed(2)}</td>
+            <td>${b.month}</td>
+            <td>${billStatusBadge(b.status)}</td>
+            <td><button class="btn-secondary" style="padding:3px 9px;font-size:11px" onclick="openEditBenefitByIndex(${realIdx})">✏️ Edit</button></td>
+          </tr>`;
+        }).join('');
+  }
+
+  // Per-client summary
+  const summaryTbody = document.getElementById('summaryTableBody');
+  if (summaryTbody) {
+    const allClientNames = [...new Set([...bills.map(b=>b.client), ...benefits.map(b=>b.client)])];
+    const summaryClients = filterClient ? [filterClient] : allClientNames;
+    summaryTbody.innerHTML = summaryClients.map(name => {
+      const cBills    = bills.filter(b => b.client===name && (!filterMonth || b.month===filterMonth));
+      const cBenefits = benefits.filter(b => b.client===name && (!filterMonth || b.month===filterMonth));
+      const totalBills    = cBills.reduce((s,b)=>s+parseFloat(b.amount||0),0);
+      const totalBenefits = cBenefits.reduce((s,b)=>s+parseFloat(b.amount||0),0);
+      const net = totalBenefits - totalBills;
+      const netColor = net >= 0 ? '#059669' : '#dc2626';
+      return `<tr>
+        <td style="font-weight:600">${name}</td>
+        <td style="color:#dc2626">$${totalBills.toFixed(2)}</td>
+        <td style="color:#059669">$${totalBenefits.toFixed(2)}</td>
+        <td style="font-weight:700;color:${netColor}">${net>=0?'+':''}$${net.toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Update stat cards (always based on full current-month data or filtered)
+  const monthFilter = filterMonth || 'May 2025';
+  const statBills    = bills.filter(b => b.month===monthFilter && (!filterClient || b.client===filterClient));
+  const statBenefits = benefits.filter(b => b.month===monthFilter && (!filterClient || b.client===filterClient));
+  const totalB = statBills.reduce((s,b)=>s+parseFloat(b.amount||0),0);
+  const totalI = statBenefits.reduce((s,b)=>s+parseFloat(b.amount||0),0);
+  const pendingCount = statBills.filter(b=>b.status==='Pending'||b.status==='Overdue').length
+    + statBenefits.filter(b=>b.status==='Pending').length;
+  document.getElementById('py_totalBills').textContent     = '$' + totalB.toFixed(2);
+  document.getElementById('py_totalBenefits').textContent  = '$' + totalI.toFixed(2);
+  document.getElementById('py_balance').textContent        = (totalI-totalB >= 0 ? '+$' : '-$') + Math.abs(totalI-totalB).toFixed(2);
+  document.getElementById('py_pending').textContent        = pendingCount;
+}
+
+function saveNewBill() {
+  const client = document.getElementById('ab_client').value;
+  const cat    = document.getElementById('ab_cat').value;
+  const amount = document.getElementById('ab_amount').value;
+  const month  = document.getElementById('ab_month').value;
+  if (!client) { toast('Please select a client','error'); return; }
+  if (!cat)    { toast('Please select a bill category','error'); return; }
+  if (!amount || parseFloat(amount) <= 0) { toast('Please enter a valid amount','error'); return; }
+  bills.push({
+    client, cat, amount: parseFloat(amount), month,
+    due:    document.getElementById('ab_due').value || '—',
+    status: document.getElementById('ab_status').value,
+    notes:  document.getElementById('ab_notes').value || '',
+  });
+  renderPayments();
+  closeModal('addBillModal');
+  ['ab_client','ab_cat','ab_amount','ab_due','ab_notes'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('ab_status').value = 'Pending';
+  toast('Bill added successfully!');
+}
+
+function openEditBillByIndex(i) {
+  currentEditBill = i;
+  const b = bills[i];
+  document.getElementById('eb_client').value = b.client;
+  document.getElementById('eb_cat').value    = b.cat;
+  document.getElementById('eb_amount').value = b.amount;
+  document.getElementById('eb_month').value  = b.month;
+  document.getElementById('eb_due').value    = b.due === '—' ? '' : b.due;
+  document.getElementById('eb_status').value = b.status;
+  document.getElementById('eb_notes').value  = b.notes || '';
+  openModal('editBillModal');
+}
+
+function saveEditBill() {
+  const i = currentEditBill;
+  if (i < 0 || i >= bills.length) return;
+  const amount = document.getElementById('eb_amount').value;
+  if (!amount || parseFloat(amount) <= 0) { toast('Please enter a valid amount','error'); return; }
+  bills[i].client = document.getElementById('eb_client').value;
+  bills[i].cat    = document.getElementById('eb_cat').value;
+  bills[i].amount = parseFloat(amount);
+  bills[i].month  = document.getElementById('eb_month').value;
+  bills[i].due    = document.getElementById('eb_due').value || '—';
+  bills[i].status = document.getElementById('eb_status').value;
+  bills[i].notes  = document.getElementById('eb_notes').value;
+  renderPayments();
+  closeModal('editBillModal');
+  toast('Bill updated successfully!');
+}
+
+function saveNewBenefit() {
+  const client = document.getElementById('abn_client').value;
+  const type   = document.getElementById('abn_type').value;
+  const amount = document.getElementById('abn_amount').value;
+  const month  = document.getElementById('abn_month').value;
+  if (!client) { toast('Please select a client','error'); return; }
+  if (!type)   { toast('Please select a benefit type','error'); return; }
+  if (!amount || parseFloat(amount) <= 0) { toast('Please enter a valid amount','error'); return; }
+  benefits.push({
+    client, type, amount: parseFloat(amount), month,
+    received: document.getElementById('abn_date').value || '',
+    status:   document.getElementById('abn_status').value,
+    notes:    document.getElementById('abn_notes').value || '',
+  });
+  renderPayments();
+  closeModal('addBenefitModal');
+  ['abn_client','abn_type','abn_amount','abn_date','abn_notes'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('abn_status').value = 'Received';
+  toast('Benefit / income record added successfully!');
+}
+
+function openEditBenefitByIndex(i) {
+  currentEditBenefit = i;
+  const b = benefits[i];
+  document.getElementById('ebn_client').value   = b.client;
+  document.getElementById('ebn_type').value     = b.type;
+  document.getElementById('ebn_amount').value   = b.amount;
+  document.getElementById('ebn_month').value    = b.month;
+  document.getElementById('ebn_date').value     = b.received || '';
+  document.getElementById('ebn_status').value   = b.status;
+  document.getElementById('ebn_notes').value    = b.notes || '';
+  openModal('editBenefitModal');
+}
+
+function saveEditBenefit() {
+  const i = currentEditBenefit;
+  if (i < 0 || i >= benefits.length) return;
+  const amount = document.getElementById('ebn_amount').value;
+  if (!amount || parseFloat(amount) <= 0) { toast('Please enter a valid amount','error'); return; }
+  benefits[i].client   = document.getElementById('ebn_client').value;
+  benefits[i].type     = document.getElementById('ebn_type').value;
+  benefits[i].amount   = parseFloat(amount);
+  benefits[i].month    = document.getElementById('ebn_month').value;
+  benefits[i].received = document.getElementById('ebn_date').value || '';
+  benefits[i].status   = document.getElementById('ebn_status').value;
+  benefits[i].notes    = document.getElementById('ebn_notes').value;
+  renderPayments();
+  closeModal('editBenefitModal');
+  toast('Benefit record updated successfully!');
+}
+
+// ── Filter client ticket list ─────────────
+function filterClientTicketList(statusFilter) {
+  const container = document.getElementById('clientTicketList');
+  if (!container) return;
+  const mine = allTickets.filter(t => t.client === 'Sarah Mitchell' && (!statusFilter || t.status === statusFilter));
+  container.innerHTML = mine.length === 0
+    ? '<p style="text-align:center;color:#9ca3af;padding:32px">No tickets found</p>'
+    : mine.map(t => {
+        const i = allTickets.indexOf(t);
+        return `<div class="ticket-card" onclick="openTicketDetailByIndex(${i})">
+          <div>
+            <p style="font-size:10px;color:#9ca3af;text-transform:uppercase;font-weight:700;margin:0 0 3px">${t.cat}</p>
+            <p style="font-weight:600;font-size:14px;color:#111;margin:0">${t.title}</p>
+            <p style="font-size:11px;color:#9ca3af;margin:4px 0 0">${t.date}</p>
+          </div>
+          <div style="display:flex;gap:6px">${statusBadge(t.priority)}${statusBadge(t.status)}</div>
+        </div>`;
+      }).join('');
+}
+
+// ── ESC key closes modals ─────────────────
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));
+});
+
+// ── Init on load ──────────────────────────
+window.addEventListener('DOMContentLoaded', ()=>{
+  renderAdminTickets();
+  renderClientTickets();
+  renderReports();
+  renderPayments();
+  renderInspections();
+});
+</script>
+</body>
+</html>
