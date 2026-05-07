@@ -1,22 +1,29 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { adminAPI } from '@/lib/api';
-import { Ticket } from '@/types';
 import { statusBadge } from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
 import { MessageSquare, Filter, Send } from 'lucide-react';
-import { format } from 'date-fns';
+
+const fmtDate = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return ''; } };
+const fmtDateTime = (d: string) => { try { return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
 
 interface AdminUser { id: string; first_name: string; last_name: string; }
+interface Message { id: string; message: string; sender_name: string; sender_role: string; is_internal: boolean; created_at: string; }
+interface TicketRow {
+  id: string; title: string; category: string; priority: string; status: string;
+  description: string; client_name: string; assigned_to?: string;
+  created_at: string; updated_at: string; messages?: Message[];
+}
 
 export default function AdminTicketsPage() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: '', priority: '', category: '' });
-  const [selected, setSelected] = useState<Ticket | null>(null);
-  const [admins, setAdmins] = useState<AdminUser[]>([]);
-  const [replyText, setReplyText] = useState('');
+  const [tickets, setTickets]       = useState<TicketRow[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [filters, setFilters]       = useState({ status: '', priority: '', category: '' });
+  const [selected, setSelected]     = useState<TicketRow | null>(null);
+  const [admins, setAdmins]         = useState<AdminUser[]>([]);
+  const [replyText, setReplyText]   = useState('');
   const [isInternal, setIsInternal] = useState(false);
   const [sendingReply, setSendingReply] = useState(false);
   const [updateForm, setUpdateForm] = useState({ status: '', priority: '', assignedTo: '' });
@@ -25,7 +32,7 @@ export default function AdminTicketsPage() {
     setLoading(true);
     try {
       const params: Record<string, string> = {};
-      if (filters.status) params.status = filters.status;
+      if (filters.status)   params.status   = filters.status;
       if (filters.priority) params.priority = filters.priority;
       if (filters.category) params.category = filters.category;
       const [{ data: t }, { data: a }] = await Promise.all([
@@ -40,11 +47,11 @@ export default function AdminTicketsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const openTicket = async (t: Ticket) => {
+  const openTicket = async (t: TicketRow) => {
     try {
       const { data } = await adminAPI.getTicket(t.id);
       setSelected(data);
-      setUpdateForm({ status: data.status, priority: data.priority, assignedTo: data.assignedTo || '' });
+      setUpdateForm({ status: data.status, priority: data.priority, assignedTo: data.assigned_to || '' });
       setReplyText('');
     } catch { toast.error('Failed to load ticket'); }
   };
@@ -82,11 +89,10 @@ export default function AdminTicketsPage() {
         <p className="text-gray-500 text-sm mt-1">{tickets.length} tickets</p>
       </div>
 
-      {/* Filters */}
       <div className="card p-4 mb-6 flex flex-wrap gap-3">
         <Filter className="w-4 h-4 text-gray-400 self-center" />
         {[
-          { key: 'status', opts: ['open','in_progress','pending_client','resolved','closed'] },
+          { key: 'status',   opts: ['open','in_progress','pending_client','resolved','closed'] },
           { key: 'priority', opts: ['low','medium','high','urgent'] },
           { key: 'category', opts: ['maintenance','financial','support','complaint','general','emergency'] },
         ].map(({ key, opts }) => (
@@ -114,14 +120,12 @@ export default function AdminTicketsPage() {
               {tickets.map((t) => (
                 <tr key={t.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => openTicket(t)}>
                   <td className="px-4 py-3 font-medium text-gray-900 max-w-xs truncate">{t.title}</td>
-                  <td className="px-4 py-3 text-gray-600">{t.clientName}</td>
+                  <td className="px-4 py-3 text-gray-600">{t.client_name}</td>
                   <td className="px-4 py-3 text-gray-600 capitalize">{t.category}</td>
                   <td className="px-4 py-3">{statusBadge(t.priority)}</td>
                   <td className="px-4 py-3">{statusBadge(t.status)}</td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{format(new Date(t.createdAt), 'dd MMM yyyy')}</td>
-                  <td className="px-4 py-3">
-                    <MessageSquare className="w-4 h-4 text-primary-400" />
-                  </td>
+                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmtDate(t.created_at)}</td>
+                  <td className="px-4 py-3"><MessageSquare className="w-4 h-4 text-primary-400" /></td>
                 </tr>
               ))}
             </tbody>
@@ -129,17 +133,15 @@ export default function AdminTicketsPage() {
         </div>
       </div>
 
-      {/* Ticket detail modal */}
       <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.title || ''} size="xl">
         {selected && (
           <div className="space-y-6">
-            {/* Meta */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
               {[
-                ['Client', selected.clientName],
-                ['Category', selected.category],
-                ['Created', format(new Date(selected.createdAt), 'dd MMM yyyy HH:mm')],
-                ['Last updated', format(new Date(selected.updatedAt), 'dd MMM yyyy HH:mm')],
+                ['Client',       selected.client_name],
+                ['Category',     selected.category],
+                ['Created',      fmtDateTime(selected.created_at)],
+                ['Last updated', fmtDateTime(selected.updated_at)],
               ].map(([l, v]) => (
                 <div key={l}><p className="text-gray-500 font-medium">{l}</p><p className="text-gray-900">{v}</p></div>
               ))}
@@ -149,10 +151,9 @@ export default function AdminTicketsPage() {
               {selected.description}
             </div>
 
-            {/* Update controls */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-blue-50 rounded-lg">
               {[
-                { label: 'Status', key: 'status', opts: ['open','in_progress','pending_client','resolved','closed'] },
+                { label: 'Status',   key: 'status',   opts: ['open','in_progress','pending_client','resolved','closed'] },
                 { label: 'Priority', key: 'priority', opts: ['low','medium','high','urgent'] },
               ].map(({ label, key, opts }) => (
                 <div key={key}>
@@ -176,35 +177,30 @@ export default function AdminTicketsPage() {
               </div>
             </div>
 
-            {/* Messages */}
             <div>
               <h3 className="font-semibold text-gray-900 mb-3">Conversation</h3>
               <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-                {selected.messages?.length === 0 && <p className="text-sm text-gray-400">No messages yet</p>}
+                {(!selected.messages || selected.messages.length === 0) && (
+                  <p className="text-sm text-gray-400">No messages yet</p>
+                )}
                 {selected.messages?.map((m) => (
-                  <div key={m.id} className={`flex gap-3 ${m.senderRole === 'admin' ? 'flex-row-reverse' : ''}`}>
+                  <div key={m.id} className={`flex gap-3 ${m.sender_role === 'admin' ? 'flex-row-reverse' : ''}`}>
                     <div className={`max-w-[75%] rounded-xl p-3 text-sm ${
-                      m.isInternal ? 'bg-yellow-50 border border-yellow-200 text-yellow-800' :
-                      m.senderRole === 'admin' ? 'bg-primary-100 text-primary-900' : 'bg-gray-100 text-gray-800'
+                      m.is_internal ? 'bg-yellow-50 border border-yellow-200 text-yellow-800' :
+                      m.sender_role === 'admin' ? 'bg-primary-100 text-primary-900' : 'bg-gray-100 text-gray-800'
                     }`}>
-                      <p className="font-medium text-xs opacity-70 mb-1">{m.senderName} {m.isInternal ? '(internal)' : ''}</p>
+                      <p className="font-medium text-xs opacity-70 mb-1">{m.sender_name} {m.is_internal ? '(internal)' : ''}</p>
                       <p className="whitespace-pre-line">{m.message}</p>
-                      <p className="text-xs opacity-50 mt-1">{format(new Date(m.createdAt), 'dd MMM HH:mm')}</p>
+                      <p className="text-xs opacity-50 mt-1">{fmtDateTime(m.created_at)}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Reply */}
             <div>
-              <textarea
-                className="input-field mb-2"
-                rows={3}
-                placeholder="Type your reply…"
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-              />
+              <textarea className="input-field mb-2" rows={3} placeholder="Type your reply…"
+                value={replyText} onChange={(e) => setReplyText(e.target.value)} />
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                   <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} />

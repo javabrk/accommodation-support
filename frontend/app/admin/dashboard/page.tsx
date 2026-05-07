@@ -4,7 +4,7 @@ import { adminAPI } from '@/lib/api';
 import { DashboardStats } from '@/types';
 import { statusBadge } from '@/components/ui/Badge';
 import { Users, Building2, Ticket, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
+const fmtDate = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return ''; } };
 
 interface StatCardProps {
   label: string;
@@ -72,7 +72,7 @@ export default function AdminDashboard() {
             <div key={t.id} className="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
                 <p className="font-medium text-gray-900 text-sm">{t.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{t.clientName} · {format(new Date(t.createdAt), 'dd MMM yyyy')}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{t.client_name} · {fmtDate(t.created_at)}</p>
               </div>
               <div className="flex items-center gap-2">
                 {statusBadge(t.priority)}
