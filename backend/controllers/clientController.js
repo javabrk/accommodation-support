@@ -4,7 +4,7 @@ exports.getProfile = async (req, res) => {
   try {
     const result = await db.query(`
       SELECT u.id, u.email, u.first_name, u.last_name,
-             c.id as client_id, c.phone, c.date_of_birth, c.gender, c.ndis_number,
+             c.id as client_id, c.phone, c.date_of_birth, c.gender, c.nhs_number,
              c.support_needs, c.status, c.emergency_contact_name, c.emergency_contact_phone,
              c.emergency_contact_relationship, c.move_in_date, c.move_out_date
       FROM users u
@@ -15,7 +15,7 @@ exports.getProfile = async (req, res) => {
     if (!result.rows[0]) return res.status(404).json({ error: 'Profile not found' });
 
     const allocation = await db.query(`
-      SELECT a.*, p.address, p.suburb, p.state, p.postcode, p.property_type, p.bedrooms, p.bathrooms
+      SELECT a.*, p.address, p.town_city, p.county, p.postcode, p.property_type, p.bedrooms, p.bathrooms
       FROM allocations a JOIN properties p ON p.id = a.property_id
       WHERE a.client_id = $1 AND a.status = 'active'
       ORDER BY a.start_date DESC LIMIT 1
@@ -157,7 +157,7 @@ exports.getDashboard = async (req, res) => {
       db.query("SELECT COUNT(*) FROM tickets WHERE client_id=$1 AND status NOT IN ('resolved','closed')", [clientId]),
       db.query('SELECT * FROM tickets WHERE client_id=$1 ORDER BY created_at DESC LIMIT 5', [clientId]),
       db.query(`
-        SELECT a.*, p.address, p.suburb, p.state, p.property_type
+        SELECT a.*, p.address, p.town_city, p.county, p.postcode, p.property_type
         FROM allocations a JOIN properties p ON p.id = a.property_id
         WHERE a.client_id = $1 AND a.status = 'active' LIMIT 1
       `, [clientId]),
@@ -168,7 +168,58 @@ exports.getDashboard = async (req, res) => {
       recentTickets: allTickets.rows,
       currentProperty: allocation.rows[0] || null,
       accountStatus: clientResult.rows[0].status,
-      moveInDate: clientResult.rows[0].move_in_date,
+      move_in_date: clientResult.rows[0].move_in_date,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// ─── Payments (client view) ───────────────────────────────────────────────────
+
+exports.getMyPayments = async (req, res) => {
+  try {
+    const clientResult = await db.query('SELECT id FROM clients WHERE user_id = $1', [req.user.id]);
+    if (!clientResult.rows[0]) return res.status(404).json({ error: 'Client profile not found' });
+    const clientId = clientResult.rows[0].id;
+
+    const { status, limit = 52 } = req.query;
+    let query = `
+      SELECT pay.*, p.address AS property_address
+      FROM payments pay
+      LEFT JOIN properties p ON p.id = pay.property_id
+      WHERE pay.client_id = $1
+    `;
+    const params = [clientId];
+    if (status) { params.push(status); query += ` AND pay.status = $${params.length}`; }
+    query += ` ORDER BY pay.week_start_date DESC LIMIT $${params.length + 1}`;
+    params.push(parseInt(limit));
+
+    const payments = await db.query(query, params);
+
+    // Get HB setting
+    const hbSetting = await db.query(
+      `SELECT * FROM housing_benefit_settings WHERE client_id = $1`,
+      [clientId]
+    );
+
+    // Summary stats
+    const stats = await db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE status = 'received') AS received_count,
+        COUNT(*) FILTER (WHERE status = 'overdue')  AS overdue_count,
+        COUNT(*) FILTER (WHERE status = 'pending')  AS pending_count,
+        COUNT(*) FILTER (WHERE status = 'partial')  AS partial_count,
+        COALESCE(SUM(amount_expected), 0) AS total_expected,
+        COALESCE(SUM(amount_received), 0) AS total_received
+      FROM payments WHERE client_id = $1
+    `, [clientId]);
+
+    res.json({
+      payments: payments.rows,
+      hbSetting: hbSetting.rows[0] || null,
+      stats: stats.rows[0],
     });
   } catch (err) {
     console.error(err);

@@ -13,4 +13,7 @@ router.post('/tickets', client.createTicket);
 router.get('/tickets/:id', client.getTicket);
 router.post('/tickets/:id/messages', client.addMessage);
 
+// Payments
+router.get('/payments', client.getMyPayments);
+
 module.exports = router;

@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutDashboard, Users, Building2, Ticket, FileText, LogOut, Home, Menu, X, ClipboardCheck, ChevronRight,
+  LayoutDashboard, Users, Building2, Ticket, FileText, LogOut, Home, Menu, X, ClipboardCheck, ChevronRight, PoundSterling,
 } from 'lucide-react';
 import { useState } from 'react';
 import { authAPI } from '@/lib/api';
@@ -13,6 +13,7 @@ const links = [
   { href: '/admin/dashboard',    label: 'Dashboard',    icon: LayoutDashboard },
   { href: '/admin/clients',      label: 'Clients',      icon: Users           },
   { href: '/admin/properties',   label: 'Properties',   icon: Building2       },
+  { href: '/admin/payments',     label: 'Payments',     icon: PoundSterling   },
   { href: '/admin/checklists',   label: 'Checklists',   icon: ClipboardCheck  },
   { href: '/admin/tickets',      label: 'Tickets',      icon: Ticket          },
   { href: '/admin/reports',      label: 'Reports',      icon: FileText        },

@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Ticket, User, LogOut, Home, Menu, X, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Ticket, User, LogOut, Home, Menu, X, ChevronRight, PoundSterling } from 'lucide-react';
 import { useState } from 'react';
 import { authAPI } from '@/lib/api';
 import { clearTokens, clearUser, getUser, getRefreshToken } from '@/lib/auth';
@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 const links = [
   { href: '/client/dashboard', label: 'Dashboard',  icon: LayoutDashboard },
   { href: '/client/tickets',   label: 'My Tickets',  icon: Ticket          },
+  { href: '/client/payments',  label: 'Payments',    icon: PoundSterling   },
   { href: '/client/profile',   label: 'My Profile',  icon: User            },
 ];
 

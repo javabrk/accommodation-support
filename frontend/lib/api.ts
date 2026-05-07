@@ -121,6 +121,17 @@ export const adminAPI = {
     api.get('/admin/inspections', { params }),
   getInspection: (id: string) => api.get(`/admin/inspections/${id}`),
   createInspection: (data: Record<string, unknown>) => api.post('/admin/inspections', data),
+
+  // Housing Benefit Settings
+  getHBSettings: () => api.get('/admin/hb-settings'),
+  upsertHBSetting: (data: Record<string, unknown>) => api.post('/admin/hb-settings', data),
+
+  // Payments
+  getPayments: (params?: Record<string, string>) => api.get('/admin/payments', { params }),
+  getPaymentStats: () => api.get('/admin/payments/stats'),
+  createPayment: (data: Record<string, unknown>) => api.post('/admin/payments', data),
+  updatePayment: (id: string, data: Record<string, unknown>) => api.put(`/admin/payments/${id}`, data),
+  generateWeeklyPayments: (data: Record<string, unknown>) => api.post('/admin/payments/generate', data),
 };
 
 // Client
@@ -135,4 +146,7 @@ export const clientAPI = {
   createTicket: (data: Record<string, unknown>) => api.post('/client/tickets', data),
   addMessage: (id: string, data: Record<string, unknown>) =>
     api.post(`/client/tickets/${id}/messages`, data),
+
+  // Payments
+  getMyPayments: (params?: Record<string, string>) => api.get('/client/payments', { params }),
 };

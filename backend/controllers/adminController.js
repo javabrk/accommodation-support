@@ -524,7 +524,6 @@ exports.createInspection = async (req, res) => {
     if (!propertyId || !items || !Array.isArray(items)) {
       return res.status(400).json({ error: 'propertyId and items are required' });
     }
-    // Calculate overall result
     const hasFail   = items.some(i => i.result === 'fail');
     const hasIssues = items.some(i => i.result === 'issues');
     const overall   = hasFail ? 'fail' : hasIssues ? 'issues' : 'pass';
@@ -535,6 +534,264 @@ exports.createInspection = async (req, res) => {
       [propertyId, req.user.id, inspectionDate || new Date(), overall, JSON.stringify(items), notes || null]
     );
     res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// ─── Housing Benefit Settings ─────────────────────────────────────────────────
+
+exports.getHBSettings = async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT h.*,
+             u.first_name || ' ' || u.last_name AS client_name,
+             u.email AS client_email,
+             c.id AS client_record_id,
+             c.status AS client_status,
+             p.address AS property_address
+      FROM housing_benefit_settings h
+      JOIN clients c ON c.id = h.client_id
+      JOIN users u ON u.id = c.user_id
+      LEFT JOIN allocations a ON a.client_id = c.id AND a.status = 'active'
+      LEFT JOIN properties p ON p.id = a.property_id
+      ORDER BY u.first_name, u.last_name
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.getAllClientsForHB = async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT c.id AS client_id,
+             u.first_name || ' ' || u.last_name AS client_name,
+             u.email,
+             c.status,
+             p.address AS property_address,
+             h.id AS hb_setting_id,
+             h.weekly_amount, h.benefit_type, h.payment_day,
+             h.reference_number, h.is_active AS hb_active,
+             h.start_date AS hb_start_date
+      FROM clients c
+      JOIN users u ON u.id = c.user_id
+      LEFT JOIN allocations a ON a.client_id = c.id AND a.status = 'active'
+      LEFT JOIN properties p ON p.id = a.property_id
+      LEFT JOIN housing_benefit_settings h ON h.client_id = c.id
+      WHERE u.role = 'client'
+      ORDER BY u.first_name, u.last_name
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.upsertHBSetting = async (req, res) => {
+  try {
+    const { clientId, weeklyAmount, benefitType, paymentDay, referenceNumber, startDate, notes, isActive } = req.body;
+    if (!clientId || weeklyAmount === undefined) {
+      return res.status(400).json({ error: 'clientId and weeklyAmount are required' });
+    }
+    const result = await db.query(`
+      INSERT INTO housing_benefit_settings
+        (client_id, weekly_amount, benefit_type, payment_day, reference_number, start_date, notes, is_active)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      ON CONFLICT (client_id) DO UPDATE SET
+        weekly_amount    = EXCLUDED.weekly_amount,
+        benefit_type     = EXCLUDED.benefit_type,
+        payment_day      = EXCLUDED.payment_day,
+        reference_number = EXCLUDED.reference_number,
+        start_date       = EXCLUDED.start_date,
+        notes            = EXCLUDED.notes,
+        is_active        = EXCLUDED.is_active,
+        updated_at       = NOW()
+      RETURNING *
+    `, [clientId, weeklyAmount, benefitType || 'housing_benefit',
+        paymentDay || 'Monday', referenceNumber || null,
+        startDate || new Date(), notes || null,
+        isActive !== false]);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+
+exports.getPayments = async (req, res) => {
+  try {
+    const { clientId, status, weekStart, paymentType, limit } = req.query;
+    let query = `
+      SELECT pay.*,
+             u.first_name || ' ' || u.last_name AS client_name,
+             p.address AS property_address,
+             p.town_city AS property_town
+      FROM payments pay
+      JOIN clients c ON c.id = pay.client_id
+      JOIN users u ON u.id = c.user_id
+      LEFT JOIN properties p ON p.id = pay.property_id
+      WHERE 1=1
+    `;
+    const params = [];
+    if (clientId)    { params.push(clientId);    query += ` AND pay.client_id = $${params.length}`; }
+    if (status)      { params.push(status);      query += ` AND pay.status = $${params.length}`; }
+    if (paymentType) { params.push(paymentType); query += ` AND pay.payment_type = $${params.length}`; }
+    if (weekStart)   { params.push(weekStart);   query += ` AND pay.week_start_date >= $${params.length}`; }
+    query += ' ORDER BY pay.week_start_date DESC, u.first_name';
+    if (limit) { params.push(parseInt(limit)); query += ` LIMIT $${params.length}`; }
+
+    const result = await db.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.createPayment = async (req, res) => {
+  try {
+    const {
+      clientId, propertyId, paymentType, amountExpected, amountReceived,
+      weekStartDate, weekEndDate, dueDate, paidDate, status, reference, notes
+    } = req.body;
+    if (!clientId || !weekStartDate || !weekEndDate) {
+      return res.status(400).json({ error: 'clientId, weekStartDate, weekEndDate are required' });
+    }
+    const result = await db.query(`
+      INSERT INTO payments
+        (client_id, property_id, payment_type, amount_expected, amount_received,
+         week_start_date, week_end_date, due_date, paid_date, status, reference, notes, recorded_by)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      RETURNING *
+    `, [clientId, propertyId || null, paymentType || 'housing_benefit',
+        amountExpected || 0, amountReceived || 0,
+        weekStartDate, weekEndDate, dueDate || null,
+        paidDate || null,
+        status || 'pending',
+        reference || null, notes || null, req.user.id]);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.updatePayment = async (req, res) => {
+  try {
+    const { amountReceived, status, paidDate, reference, notes } = req.body;
+    const result = await db.query(`
+      UPDATE payments SET
+        amount_received = COALESCE($1, amount_received),
+        status          = COALESCE($2, status),
+        paid_date       = COALESCE($3::timestamptz, paid_date),
+        reference       = COALESCE($4, reference),
+        notes           = COALESCE($5, notes),
+        recorded_by     = $6,
+        updated_at      = NOW()
+      WHERE id = $7
+      RETURNING *
+    `, [amountReceived ?? null, status || null,
+        paidDate || null, reference || null, notes || null,
+        req.user.id, req.params.id]);
+    if (!result.rows[0]) return res.status(404).json({ error: 'Payment not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.getPaymentStats = async (req, res) => {
+  try {
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const [monthly, overdue, received, pending] = await Promise.all([
+      db.query(`SELECT COALESCE(SUM(amount_expected),0) AS total FROM payments
+                WHERE week_start_date >= $1`, [monthStart]),
+      db.query(`SELECT COUNT(*) AS count, COALESCE(SUM(amount_expected - amount_received),0) AS shortfall
+                FROM payments WHERE status = 'overdue'`),
+      db.query(`SELECT COALESCE(SUM(amount_received),0) AS total FROM payments
+                WHERE status IN ('received','partial') AND week_start_date >= $1`, [monthStart]),
+      db.query(`SELECT COUNT(*) AS count FROM payments WHERE status = 'pending'`),
+    ]);
+
+    res.json({
+      monthlyExpected:  parseFloat(monthly.rows[0].total),
+      monthlyReceived:  parseFloat(received.rows[0].total),
+      overdueCount:     parseInt(overdue.rows[0].count),
+      overdueShortfall: parseFloat(overdue.rows[0].shortfall),
+      pendingCount:     parseInt(pending.rows[0].count),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Generate weekly payment records for all active HB clients for the next N weeks
+exports.generateWeeklyPayments = async (req, res) => {
+  try {
+    const { weeksAhead = 4 } = req.body;
+    const settings = await db.query(`
+      SELECT h.*, c.id AS client_id,
+             a.property_id
+      FROM housing_benefit_settings h
+      JOIN clients c ON c.id = h.client_id
+      LEFT JOIN allocations a ON a.client_id = c.id AND a.status = 'active'
+      WHERE h.is_active = true
+    `);
+
+    let created = 0;
+    const today = new Date();
+    // Find the most recent Monday
+    const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon ...
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() + daysToMonday);
+    thisMonday.setHours(0, 0, 0, 0);
+
+    for (const setting of settings.rows) {
+      for (let w = 0; w < parseInt(weeksAhead); w++) {
+        const weekStart = new Date(thisMonday);
+        weekStart.setDate(thisMonday.getDate() + w * 7);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+
+        const weekStartStr = weekStart.toISOString().slice(0, 10);
+
+        // Skip if already exists for this client + week
+        const exists = await db.query(
+          `SELECT id FROM payments WHERE client_id = $1 AND week_start_date = $2 AND payment_type = $3`,
+          [setting.client_id, weekStartStr, setting.benefit_type]
+        );
+        if (exists.rows.length > 0) continue;
+
+        const isPast = weekEnd < today;
+        const status = isPast ? 'overdue' : 'pending';
+
+        await db.query(`
+          INSERT INTO payments
+            (client_id, property_id, payment_type, amount_expected, amount_received,
+             week_start_date, week_end_date, due_date, status, recorded_by)
+          VALUES ($1,$2,$3,$4,0,$5,$6,$7,$8,$9)
+        `, [setting.client_id, setting.property_id || null,
+            setting.benefit_type, setting.weekly_amount,
+            weekStartStr, weekEnd.toISOString().slice(0, 10),
+            weekStartStr, // due on Monday of that week
+            status, req.user.id]);
+        created++;
+      }
+    }
+    res.json({ created, message: `Generated ${created} new payment records` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

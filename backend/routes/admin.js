@@ -42,4 +42,15 @@ router.get('/inspections',      admin.getInspections);
 router.get('/inspections/:id',  admin.getInspection);
 router.post('/inspections',     admin.createInspection);
 
+// Housing Benefit Settings
+router.get('/hb-settings',             admin.getAllClientsForHB);
+router.post('/hb-settings',            admin.upsertHBSetting);
+
+// Payments
+router.get('/payments',                admin.getPayments);
+router.get('/payments/stats',          admin.getPaymentStats);
+router.post('/payments',               admin.createPayment);
+router.put('/payments/:id',            admin.updatePayment);
+router.post('/payments/generate',      admin.generateWeeklyPayments);
+
 module.exports = router;
