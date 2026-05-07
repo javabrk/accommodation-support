@@ -98,12 +98,15 @@ export default function LoginPage() {
             <p>Admin: <code>admin@accommodation.com</code> / <code>Admin@123</code></p>
           </div>
 
-          <p className="text-center text-sm text-gray-500 mt-5">
-            New tenant?{' '}
-            <a href="/register" className="text-primary-600 font-medium hover:underline">
-              Create an account
+          <div className="mt-5 pt-5 border-t border-gray-200 text-center">
+            <p className="text-sm text-gray-600 mb-2">Are you a tenant?</p>
+            <a
+              href="/register"
+              className="inline-block w-full py-2.5 text-center rounded-lg border-2 border-primary-600 text-primary-600 font-semibold hover:bg-primary-50 transition-colors"
+            >
+              Create a tenant account
             </a>
-          </p>
+          </div>
         </div>
       </div>
     </div>
