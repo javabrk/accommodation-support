@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ElementType } from 'react';
 import { clientAPI } from '@/lib/api';
-import { PoundSterling, CheckCircle2, AlertTriangle, Clock, TrendingDown, Info } from 'lucide-react';
+import { PoundSterling, CheckCircle2, AlertTriangle, Clock, Info } from 'lucide-react';
 
 const fmt  = (d?: string | null) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); } catch { return '—'; } };
 const fmtP = (n: number | string) => `£${parseFloat(String(n || 0)).toFixed(2)}`;
@@ -29,7 +29,7 @@ interface Stats {
   total_expected: string; total_received: string;
 }
 
-const statusStyle: Record<string, { bg: string; text: string; icon: React.ElementType; label: string }> = {
+const statusStyle: Record<string, { bg: string; text: string; icon: ElementType; label: string }> = {
   received:       { bg: 'bg-green-50',  text: 'text-green-700',  icon: CheckCircle2,  label: 'Received'  },
   partial:        { bg: 'bg-blue-50',   text: 'text-blue-700',   icon: Info,          label: 'Partial'   },
   pending:        { bg: 'bg-gray-50',   text: 'text-gray-500',   icon: Clock,         label: 'Pending'   },
