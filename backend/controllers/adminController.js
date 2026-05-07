@@ -296,14 +296,23 @@ exports.updateTicket = async (req, res) => {
     // assignedTo: must be null or a UUID of an admin user
     const assignedToValue = (assignedTo && assignedTo.trim()) ? assignedTo.trim() : null;
 
+    // Compute resolved_at in JS to avoid PostgreSQL's "$1 type inconsistency" error
+    // when the same parameter appears in both SET and a CASE expression.
+    let resolvedAtClause;
+    if (status === 'resolved') {
+      resolvedAtClause = 'CASE WHEN resolved_at IS NULL THEN NOW() ELSE resolved_at END';
+    } else if (status === 'closed') {
+      resolvedAtClause = 'resolved_at'; // keep whatever was already set
+    } else {
+      resolvedAtClause = 'NULL';        // re-opened — clear resolved_at
+    }
+
     const result = await db.query(
       `UPDATE tickets
          SET status      = $1,
              priority    = $2,
              assigned_to = $3,
-             resolved_at = CASE WHEN $1 = 'resolved' AND resolved_at IS NULL THEN NOW()
-                                WHEN $1 NOT IN ('resolved','closed') THEN NULL
-                                ELSE resolved_at END
+             resolved_at = ${resolvedAtClause}
        WHERE id = $4
        RETURNING *`,
       [status, priority, assignedToValue, req.params.id]
