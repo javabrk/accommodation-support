@@ -296,29 +296,26 @@ exports.updateTicket = async (req, res) => {
     // assignedTo: must be null or a UUID of an admin user
     const assignedToValue = (assignedTo && assignedTo.trim()) ? assignedTo.trim() : null;
 
-    // Compute resolved_at in JS to avoid PostgreSQL's "$1 type inconsistency" error
-    // when the same parameter appears in both SET and a CASE expression.
-    let resolvedAtClause;
-    if (status === 'resolved') {
-      resolvedAtClause = 'CASE WHEN resolved_at IS NULL THEN NOW() ELSE resolved_at END';
-    } else if (status === 'closed') {
-      resolvedAtClause = 'resolved_at'; // keep whatever was already set
-    } else {
-      resolvedAtClause = 'NULL';        // re-opened — clear resolved_at
-    }
-
-    const result = await db.query(
-      `UPDATE tickets
-         SET status      = $1,
-             priority    = $2,
-             assigned_to = $3,
-             resolved_at = ${resolvedAtClause}
-       WHERE id = $4
-       RETURNING *`,
+    // Step 1: update status, priority, assigned_to — no CASE expression, no type ambiguity
+    const updateResult = await db.query(
+      'UPDATE tickets SET status=$1, priority=$2, assigned_to=$3 WHERE id=$4',
       [status, priority, assignedToValue, req.params.id]
     );
+    if (updateResult.rowCount === 0) return res.status(404).json({ error: 'Ticket not found' });
 
-    if (!result.rows[0]) return res.status(404).json({ error: 'Ticket not found' });
+    // Step 2: handle resolved_at in a separate query to avoid any parameter type conflicts
+    if (status === 'resolved') {
+      await db.query(
+        'UPDATE tickets SET resolved_at = NOW() WHERE id=$1 AND resolved_at IS NULL',
+        [req.params.id]
+      );
+    } else if (status !== 'closed') {
+      // Re-opened or set back to in_progress / pending — clear resolved_at
+      await db.query('UPDATE tickets SET resolved_at = NULL WHERE id=$1', [req.params.id]);
+    }
+
+    // Step 3: return the updated row
+    const result = await db.query('SELECT * FROM tickets WHERE id=$1', [req.params.id]);
     res.json(result.rows[0]);
   } catch (err) {
     console.error('updateTicket error:', err.message);
