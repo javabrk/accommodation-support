@@ -93,11 +93,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600 space-y-1">
-            <p className="font-semibold text-gray-700 mb-2">Test Credentials</p>
-            <p>📧 <span className="font-medium">Admin email:</span> admin@accommodation.com</p>
-            <p>🔑 <span className="font-medium">Admin password:</span> Admin@123</p>
-          </div>
 
           <div className="mt-5 pt-5 border-t border-gray-200 text-center">
             <p className="text-sm text-gray-600 mb-2">Are you a tenant?</p>
