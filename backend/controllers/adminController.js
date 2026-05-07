@@ -8,10 +8,10 @@ exports.getClients = async (req, res) => {
     const { status, search } = req.query;
     let query = `
       SELECT u.id, u.email, u.first_name, u.last_name, u.is_active, u.last_login,
-             c.id as client_id, c.phone, c.date_of_birth, c.ndis_number, c.status,
+             c.id as client_id, c.phone, c.date_of_birth, c.nhs_number, c.status,
              c.move_in_date, c.move_out_date, c.support_needs, c.notes,
              c.emergency_contact_name, c.emergency_contact_phone,
-             p.address as property_address, p.suburb as property_suburb
+             p.address as property_address, p.town_city as property_town
       FROM users u
       LEFT JOIN clients c ON c.user_id = u.id
       LEFT JOIN allocations a ON a.client_id = c.id AND a.status = 'active'
@@ -38,8 +38,9 @@ exports.getClient = async (req, res) => {
   try {
     const result = await db.query(`
       SELECT u.id, u.email, u.first_name, u.last_name, u.is_active, u.created_at,
-             c.id as client_id, c.phone, c.date_of_birth, c.gender, c.indigenous_status,
-             c.ndis_number, c.support_needs, c.status, c.notes, c.move_in_date, c.move_out_date,
+             c.id as client_id, c.phone, c.date_of_birth, c.gender,
+             c.nhs_number, c.support_needs, c.status, c.notes, c.move_in_date, c.move_out_date,
+             c.address_line1, c.town_city, c.county, c.postcode,
              c.emergency_contact_name, c.emergency_contact_phone, c.emergency_contact_relationship
       FROM users u
       LEFT JOIN clients c ON c.user_id = u.id
@@ -49,7 +50,7 @@ exports.getClient = async (req, res) => {
     if (!result.rows[0]) return res.status(404).json({ error: 'Client not found' });
 
     const allocations = await db.query(`
-      SELECT a.*, p.address, p.suburb, p.state, p.postcode, p.property_type
+      SELECT a.*, p.address, p.town_city, p.county, p.postcode, p.property_type
       FROM allocations a JOIN properties p ON p.id = a.property_id
       WHERE a.client_id = $1 ORDER BY a.start_date DESC
     `, [result.rows[0].client_id]);
@@ -78,7 +79,7 @@ exports.createClient = async (req, res) => {
     await client.query('BEGIN');
     const {
       email, password, firstName, lastName, phone, dateOfBirth, gender,
-      indigenousStatus, ndisNumber, supportNeeds, emergencyContactName,
+      nhsNumber, supportNeeds, emergencyContactName,
       emergencyContactPhone, emergencyContactRelationship, notes, status,
     } = req.body;
 
@@ -91,12 +92,13 @@ exports.createClient = async (req, res) => {
     const user = userResult.rows[0];
 
     const clientResult = await client.query(
-      `INSERT INTO clients (user_id, phone, date_of_birth, gender, indigenous_status,
-        ndis_number, support_needs, emergency_contact_name, emergency_contact_phone,
+      `INSERT INTO clients (user_id, phone, date_of_birth, gender,
+        nhs_number, support_needs, emergency_contact_name, emergency_contact_phone,
         emergency_contact_relationship, notes, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [user.id, phone, dateOfBirth, gender, indigenousStatus, ndisNumber, supportNeeds,
-       emergencyContactName, emergencyContactPhone, emergencyContactRelationship, notes, status || 'active']
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [user.id, phone, dateOfBirth || null, gender, nhsNumber, supportNeeds,
+       emergencyContactName, emergencyContactPhone, emergencyContactRelationship,
+       notes, status || 'active']
     );
 
     await client.query('COMMIT');
@@ -115,8 +117,8 @@ exports.updateClient = async (req, res) => {
   const dbClient = await db.getClient();
   try {
     await dbClient.query('BEGIN');
-    const { firstName, lastName, email, phone, dateOfBirth, gender, indigenousStatus,
-      ndisNumber, supportNeeds, emergencyContactName, emergencyContactPhone,
+    const { firstName, lastName, email, phone, dateOfBirth, gender,
+      nhsNumber, supportNeeds, emergencyContactName, emergencyContactPhone,
       emergencyContactRelationship, notes, status, moveInDate, moveOutDate } = req.body;
 
     await dbClient.query(
@@ -126,13 +128,13 @@ exports.updateClient = async (req, res) => {
     );
 
     await dbClient.query(
-      `UPDATE clients SET phone=$1, date_of_birth=$2, gender=$3, indigenous_status=$4,
-        ndis_number=$5, support_needs=$6, emergency_contact_name=$7, emergency_contact_phone=$8,
-        emergency_contact_relationship=$9, notes=$10, status=$11, move_in_date=$12, move_out_date=$13
-       WHERE user_id=$14`,
-      [phone, dateOfBirth, gender, indigenousStatus, ndisNumber, supportNeeds,
+      `UPDATE clients SET phone=$1, date_of_birth=$2, gender=$3,
+        nhs_number=$4, support_needs=$5, emergency_contact_name=$6, emergency_contact_phone=$7,
+        emergency_contact_relationship=$8, notes=$9, status=$10, move_in_date=$11, move_out_date=$12
+       WHERE user_id=$13`,
+      [phone, dateOfBirth || null, gender, nhsNumber, supportNeeds,
        emergencyContactName, emergencyContactPhone, emergencyContactRelationship,
-       notes, status, moveInDate, moveOutDate, req.params.id]
+       notes, status, moveInDate || null, moveOutDate || null, req.params.id]
     );
 
     await dbClient.query('COMMIT');
@@ -163,21 +165,22 @@ exports.getProperties = async (req, res) => {
     const result = await db.query(query, params);
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 };
 
 exports.createProperty = async (req, res) => {
   try {
-    const { address, suburb, state, postcode, propertyType, bedrooms, bathrooms,
+    const { address, townCity, county, postcode, propertyType, bedrooms, bathrooms,
       capacity, status, monthlyRent, description } = req.body;
 
     const result = await db.query(
-      `INSERT INTO properties (address, suburb, state, postcode, property_type, bedrooms,
+      `INSERT INTO properties (address, town_city, county, postcode, property_type, bedrooms,
         bathrooms, capacity, status, monthly_rent, description)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [address, suburb, state, postcode, propertyType, bedrooms, bathrooms,
-       capacity, status || 'available', monthlyRent, description]
+      [address, townCity, county, postcode, propertyType, bedrooms || 1, bathrooms || 1,
+       capacity || 1, status || 'available', monthlyRent, description]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -188,19 +191,20 @@ exports.createProperty = async (req, res) => {
 
 exports.updateProperty = async (req, res) => {
   try {
-    const { address, suburb, state, postcode, propertyType, bedrooms, bathrooms,
+    const { address, townCity, county, postcode, propertyType, bedrooms, bathrooms,
       capacity, status, monthlyRent, description } = req.body;
 
     const result = await db.query(
-      `UPDATE properties SET address=$1, suburb=$2, state=$3, postcode=$4, property_type=$5,
+      `UPDATE properties SET address=$1, town_city=$2, county=$3, postcode=$4, property_type=$5,
         bedrooms=$6, bathrooms=$7, capacity=$8, status=$9, monthly_rent=$10, description=$11
        WHERE id=$12 RETURNING *`,
-      [address, suburb, state, postcode, propertyType, bedrooms, bathrooms,
+      [address, townCity, county, postcode, propertyType, bedrooms, bathrooms,
        capacity, status, monthlyRent, description, req.params.id]
     );
     if (!result.rows[0]) return res.status(404).json({ error: 'Property not found' });
     res.json(result.rows[0]);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -245,6 +249,7 @@ exports.getTickets = async (req, res) => {
     const result = await db.query(query, params);
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -271,6 +276,7 @@ exports.getTicket = async (req, res) => {
 
     res.json({ ...ticket.rows[0], messages: messages.rows });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -278,7 +284,6 @@ exports.getTicket = async (req, res) => {
 exports.updateTicket = async (req, res) => {
   try {
     const { status, priority, assignedTo } = req.body;
-    const resolvedAt = status === 'resolved' ? 'NOW()' : 'NULL';
     const result = await db.query(
       `UPDATE tickets SET status=$1, priority=$2, assigned_to=$3,
         resolved_at = CASE WHEN $1 = 'resolved' THEN NOW() ELSE resolved_at END
@@ -288,6 +293,7 @@ exports.updateTicket = async (req, res) => {
     if (!result.rows[0]) return res.status(404).json({ error: 'Ticket not found' });
     res.json(result.rows[0]);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -306,6 +312,7 @@ exports.addTicketMessage = async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -332,6 +339,7 @@ exports.getReports = async (req, res) => {
     const result = await db.query(query, params);
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -346,6 +354,7 @@ exports.createReport = async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -361,6 +370,7 @@ exports.updateReport = async (req, res) => {
     if (!result.rows[0]) return res.status(404).json({ error: 'Report not found' });
     res.json(result.rows[0]);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -461,6 +471,7 @@ exports.reactivateAdmin = async (req, res) => {
     if (!result.rows[0]) return res.status(404).json({ error: 'Admin not found' });
     res.json({ message: 'Admin reactivated' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 };
