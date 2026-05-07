@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
+import WelcomeSplash from '@/components/ui/WelcomeSplash';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -10,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'SupportHome — Social Support Accommodation',
+  title: 'SSAccommodations — Housing Management Platform',
   description: 'Manage social support accommodation for clients and staff',
 };
 
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable}>
       <body className="antialiased">
+        <WelcomeSplash />
         {children}
         <Toaster
           position="top-right"
