@@ -37,4 +37,9 @@ router.get('/reports',      admin.getReports);
 router.post('/reports',     admin.createReport);
 router.put('/reports/:id',  admin.updateReport);
 
+// Inspections / Property Checklists
+router.get('/inspections',      admin.getInspections);
+router.get('/inspections/:id',  admin.getInspection);
+router.post('/inspections',     admin.createInspection);
+
 module.exports = router;

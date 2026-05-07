@@ -115,6 +115,12 @@ export const adminAPI = {
   createReport: (data: Record<string, unknown>) => api.post('/admin/reports', data),
   updateReport: (id: string, data: Record<string, unknown>) =>
     api.put(`/admin/reports/${id}`, data),
+
+  // Inspections
+  getInspections: (params?: Record<string, string>) =>
+    api.get('/admin/inspections', { params }),
+  getInspection: (id: string) => api.get(`/admin/inspections/${id}`),
+  createInspection: (data: Record<string, unknown>) => api.post('/admin/inspections', data),
 };
 
 // Client

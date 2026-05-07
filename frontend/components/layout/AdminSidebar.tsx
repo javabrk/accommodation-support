@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutDashboard, Users, Building2, Ticket, FileText, LogOut, Home, Menu, X,
+  LayoutDashboard, Users, Building2, Ticket, FileText, LogOut, Home, Menu, X, ClipboardCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { authAPI } from '@/lib/api';
@@ -10,11 +10,12 @@ import { clearTokens, clearUser, getUser, getRefreshToken } from '@/lib/auth';
 import toast from 'react-hot-toast';
 
 const links = [
-  { href: '/admin/dashboard',  label: 'Dashboard',   icon: LayoutDashboard },
-  { href: '/admin/clients',    label: 'Clients',      icon: Users           },
-  { href: '/admin/properties', label: 'Properties',   icon: Building2       },
-  { href: '/admin/tickets',    label: 'Tickets',      icon: Ticket          },
-  { href: '/admin/reports',    label: 'Reports',      icon: FileText        },
+  { href: '/admin/dashboard',    label: 'Dashboard',    icon: LayoutDashboard },
+  { href: '/admin/clients',      label: 'Clients',       icon: Users           },
+  { href: '/admin/properties',   label: 'Properties',    icon: Building2       },
+  { href: '/admin/checklists',   label: 'Checklists',    icon: ClipboardCheck  },
+  { href: '/admin/tickets',      label: 'Tickets',       icon: Ticket          },
+  { href: '/admin/reports',      label: 'Reports',       icon: FileText        },
 ];
 
 export default function AdminSidebar() {

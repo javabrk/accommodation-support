@@ -475,3 +475,68 @@ exports.reactivateAdmin = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
+// ─── Inspections / Property Checklists ───────────────────────────────────────
+
+exports.getInspections = async (req, res) => {
+  try {
+    const { propertyId } = req.query;
+    let query = `
+      SELECT i.*, p.address as property_address, p.town_city, p.postcode,
+             u.first_name || ' ' || u.last_name as inspector_name
+      FROM inspections i
+      JOIN properties p ON p.id = i.property_id
+      JOIN users u ON u.id = i.inspector_id
+      WHERE 1=1
+    `;
+    const params = [];
+    if (propertyId) { params.push(propertyId); query += ` AND i.property_id = $${params.length}`; }
+    query += ' ORDER BY i.created_at DESC';
+    const result = await db.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.getInspection = async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT i.*, p.address as property_address, p.town_city, p.postcode,
+             u.first_name || ' ' || u.last_name as inspector_name
+      FROM inspections i
+      JOIN properties p ON p.id = i.property_id
+      JOIN users u ON u.id = i.inspector_id
+      WHERE i.id = $1
+    `, [req.params.id]);
+    if (!result.rows[0]) return res.status(404).json({ error: 'Inspection not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.createInspection = async (req, res) => {
+  try {
+    const { propertyId, inspectionDate, items, notes } = req.body;
+    if (!propertyId || !items || !Array.isArray(items)) {
+      return res.status(400).json({ error: 'propertyId and items are required' });
+    }
+    // Calculate overall result
+    const hasFail   = items.some(i => i.result === 'fail');
+    const hasIssues = items.some(i => i.result === 'issues');
+    const overall   = hasFail ? 'fail' : hasIssues ? 'issues' : 'pass';
+
+    const result = await db.query(
+      `INSERT INTO inspections (property_id, inspector_id, inspection_date, overall_result, items, notes)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [propertyId, req.user.id, inspectionDate || new Date(), overall, JSON.stringify(items), notes || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
