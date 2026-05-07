@@ -8,10 +8,15 @@ import toast from 'react-hot-toast';
 import { Plus, Edit, Home } from 'lucide-react';
 
 const emptyForm = {
-  address: '', suburb: '', state: '', postcode: '', propertyType: 'house',
+  address: '', townCity: '', county: '', postcode: '', propertyType: 'terraced',
   bedrooms: '1', bathrooms: '1', capacity: '1', status: 'available',
   monthlyRent: '', description: '',
 };
+
+const UK_PROPERTY_TYPES = [
+  'terraced', 'semi-detached', 'detached', 'flat', 'bungalow',
+  'studio', 'bedsit', 'maisonette', 'house', 'apartment',
+];
 
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -36,9 +41,16 @@ export default function PropertiesPage() {
   const openEdit = (p: Property) => {
     setEditTarget(p);
     setForm({
-      address: p.address, suburb: p.suburb, state: p.state, postcode: p.postcode,
-      propertyType: p.propertyType, bedrooms: String(p.bedrooms), bathrooms: String(p.bathrooms),
-      capacity: String(p.capacity), status: p.status, monthlyRent: String(p.monthlyRent || ''),
+      address: p.address,
+      townCity: (p as any).town_city || (p as any).townCity || '',
+      county: (p as any).county || '',
+      postcode: p.postcode,
+      propertyType: (p as any).property_type || p.propertyType,
+      bedrooms: String(p.bedrooms),
+      bathrooms: String(p.bathrooms),
+      capacity: String(p.capacity),
+      status: p.status,
+      monthlyRent: String((p as any).monthly_rent || p.monthlyRent || ''),
       description: p.description || '',
     });
     setModalOpen(true);
@@ -92,7 +104,9 @@ export default function PropertiesPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">{p.address}</p>
-                  <p className="text-xs text-gray-500">{p.suburb}, {p.state} {p.postcode}</p>
+                  <p className="text-xs text-gray-500">
+                    {(p as any).town_city || (p as any).townCity}{(p as any).county ? `, ${(p as any).county}` : ''} · {p.postcode}
+                  </p>
                 </div>
               </div>
               {statusBadge(p.status)}
@@ -102,8 +116,10 @@ export default function PropertiesPage() {
               <div><p className="font-semibold text-gray-700 text-sm">{p.bathrooms}</p><p>Baths</p></div>
               <div><p className="font-semibold text-gray-700 text-sm">{p.currentOccupants ?? 0}/{p.capacity}</p><p>Occupied</p></div>
             </div>
-            {p.monthlyRent && (
-              <p className="text-sm font-medium text-gray-700 mb-3">${Number(p.monthlyRent).toLocaleString()}/mo</p>
+            {((p as any).monthly_rent || p.monthlyRent) && (
+              <p className="text-sm font-medium text-gray-700 mb-3">
+                £{Number((p as any).monthly_rent || p.monthlyRent).toLocaleString('en-GB')}/mo
+              </p>
             )}
             <button onClick={() => openEdit(p)} className="btn-secondary w-full flex items-center justify-center gap-1 text-sm py-1.5">
               <Edit className="w-3.5 h-3.5" /> Edit
@@ -119,30 +135,29 @@ export default function PropertiesPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Street Address *</label>
-            <input type="text" className="input-field" value={form.address} onChange={f('address')} required />
+            <input type="text" className="input-field" placeholder="e.g. 12 Oak Street" value={form.address} onChange={f('address')} required />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Suburb *</label>
-              <input type="text" className="input-field" value={form.suburb} onChange={f('suburb')} required />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Town / City *</label>
+              <input type="text" className="input-field" placeholder="e.g. Manchester" value={form.townCity} onChange={f('townCity')} required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
-              <select className="input-field" value={form.state} onChange={f('state')} required>
-                <option value="">Select…</option>
-                {['NSW','VIC','QLD','WA','SA','TAS','ACT','NT'].map(s => <option key={s}>{s}</option>)}
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-1">County</label>
+              <input type="text" className="input-field" placeholder="e.g. Greater Manchester" value={form.county} onChange={f('county')} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Postcode *</label>
-              <input type="text" className="input-field" value={form.postcode} onChange={f('postcode')} required />
+              <input type="text" className="input-field" placeholder="e.g. M4 1LT" value={form.postcode} onChange={f('postcode')} required />
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Property Type</label>
               <select className="input-field" value={form.propertyType} onChange={f('propertyType')}>
-                {['house','apartment','unit','townhouse','studio'].map(t => <option key={t}>{t}</option>)}
+                {UK_PROPERTY_TYPES.map(t => (
+                  <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -162,12 +177,14 @@ export default function PropertiesPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select className="input-field" value={form.status} onChange={f('status')}>
-                {['available','occupied','maintenance','inactive'].map(s => <option key={s}>{s}</option>)}
+                {['available','occupied','maintenance','inactive'].map(s => (
+                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Rent ($)</label>
-              <input type="number" className="input-field" value={form.monthlyRent} onChange={f('monthlyRent')} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Rent (£)</label>
+              <input type="number" className="input-field" placeholder="e.g. 850" value={form.monthlyRent} onChange={f('monthlyRent')} />
             </div>
           </div>
           <div>
@@ -176,7 +193,9 @@ export default function PropertiesPage() {
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" className="btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-            <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving…' : editTarget ? 'Update Property' : 'Create Property'}</button>
+            <button type="submit" className="btn-primary" disabled={saving}>
+              {saving ? 'Saving…' : editTarget ? 'Update Property' : 'Create Property'}
+            </button>
           </div>
         </form>
       </Modal>

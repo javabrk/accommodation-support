@@ -9,13 +9,13 @@ import Link from 'next/link';
 
 interface ClientRow {
   id: string; email: string; first_name: string; last_name: string;
-  phone?: string; status?: string; ndis_number?: string;
-  move_in_date?: string; property_address?: string; property_suburb?: string;
+  phone?: string; status?: string; nhs_number?: string;
+  move_in_date?: string; property_address?: string; property_town?: string;
 }
 
 const emptyForm = {
   firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '',
-  gender: '', ndisNumber: '', supportNeeds: '', emergencyContactName: '',
+  gender: '', nhsNumber: '', supportNeeds: '', emergencyContactName: '',
   emergencyContactPhone: '', emergencyContactRelationship: '', notes: '', status: 'active',
 };
 
@@ -98,7 +98,7 @@ export default function ClientsPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {['Name', 'Email', 'Phone', 'NDIS #', 'Property', 'Status', ''].map((h) => (
+                {['Name', 'Email', 'Phone', 'NHS No.', 'Property', 'Status', ''].map((h) => (
                   <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
                 ))}
               </tr>
@@ -115,9 +115,9 @@ export default function ClientsPage() {
                   <td className="px-4 py-3 font-medium text-gray-900">{c.first_name} {c.last_name}</td>
                   <td className="px-4 py-3 text-gray-600">{c.email}</td>
                   <td className="px-4 py-3 text-gray-600">{c.phone || '—'}</td>
-                  <td className="px-4 py-3 text-gray-600">{c.ndis_number || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">{c.nhs_number || '—'}</td>
                   <td className="px-4 py-3 text-gray-600">
-                    {c.property_address ? `${c.property_address}, ${c.property_suburb}` : '—'}
+                    {c.property_address ? `${c.property_address}, ${c.property_town}` : '—'}
                   </td>
                   <td className="px-4 py-3">{statusBadge(c.status || 'pending')}</td>
                   <td className="px-4 py-3">
@@ -137,14 +137,14 @@ export default function ClientsPage() {
         <form onSubmit={handleCreate} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { label: 'First Name *', key: 'firstName', type: 'text', required: true },
-              { label: 'Last Name *',  key: 'lastName',  type: 'text', required: true },
-              { label: 'Email *',      key: 'email',     type: 'email', required: true },
-              { label: 'Phone',        key: 'phone',     type: 'tel' },
-              { label: 'Date of Birth', key: 'dateOfBirth', type: 'date' },
-              { label: 'NDIS Number',   key: 'ndisNumber',  type: 'text' },
-              { label: 'Emergency Contact', key: 'emergencyContactName', type: 'text' },
-              { label: 'Emergency Phone',   key: 'emergencyContactPhone', type: 'tel' },
+              { label: 'First Name *',       key: 'firstName',             type: 'text',  required: true },
+              { label: 'Last Name *',         key: 'lastName',              type: 'text',  required: true },
+              { label: 'Email *',             key: 'email',                 type: 'email', required: true },
+              { label: 'Phone',               key: 'phone',                 type: 'tel' },
+              { label: 'Date of Birth',       key: 'dateOfBirth',           type: 'date' },
+              { label: 'NHS Number',          key: 'nhsNumber',             type: 'text' },
+              { label: 'Emergency Contact',   key: 'emergencyContactName',  type: 'text' },
+              { label: 'Emergency Phone',     key: 'emergencyContactPhone', type: 'tel' },
             ].map(({ label, key, type, required }) => (
               <div key={key}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
