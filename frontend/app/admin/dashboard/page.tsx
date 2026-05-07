@@ -1,8 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { adminAPI } from '@/lib/api';
-import { DashboardStats } from '@/types';
 import { statusBadge } from '@/components/ui/Badge';
+
+interface RecentTicket { id: string; title: string; priority: string; status: string; client_name?: string; created_at: string; }
+interface DashboardStats { activeClients: number; availableProperties: number; activeTickets: number; openTickets: number; recentTickets: RecentTicket[]; }
 import { Users, Building2, Ticket, AlertCircle } from 'lucide-react';
 const fmtDate = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return ''; } };
 
