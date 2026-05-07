@@ -164,7 +164,7 @@ CREATE TRIGGER update_reports_updated_at    BEFORE UPDATE ON reports     FOR EAC
 INSERT INTO users (email, password_hash, role, first_name, last_name, is_super_admin)
 VALUES (
   'admin@accommodation.com',
-  '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+  '$2a$10$V8w8sPMNUz8XUamPsCfukucoeaLFSzbLEkEgq6LIXYbqhWO11L8XC',
   'admin',
   'System',
   'Admin',
