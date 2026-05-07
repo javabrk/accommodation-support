@@ -3,16 +3,17 @@ import { useEffect, useState } from 'react';
 import { clientAPI } from '@/lib/api';
 import { statusBadge } from '@/components/ui/Badge';
 import { Ticket, MapPin, AlertCircle, Plus } from 'lucide-react';
-import { format } from 'date-fns';
 import Link from 'next/link';
 import { getUser } from '@/lib/auth';
+
+const fmtDate = (d?: string) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return '—'; } };
 
 interface Dashboard {
   openTickets: number;
   recentTickets: Array<{ id: string; title: string; priority: string; status: string; created_at: string }>;
-  currentProperty: { address: string; suburb: string; state: string; property_type: string } | null;
+  currentProperty: { address: string; town_city: string; county?: string; postcode: string; property_type: string } | null;
   accountStatus: string;
-  moveInDate?: string;
+  move_in_date?: string;
 }
 
 export default function ClientDashboard() {
@@ -39,7 +40,7 @@ export default function ClientDashboard() {
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Welcome, {user?.firstName}!</h1>
-        <p className="text-gray-500 text-sm mt-1">Here's your accommodation support summary</p>
+        <p className="text-gray-500 text-sm mt-1">Here&apos;s your accommodation support summary</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
@@ -58,7 +59,7 @@ export default function ClientDashboard() {
           </div>
           <div>
             <p className="font-semibold text-gray-900 text-sm leading-tight">
-              {data?.currentProperty ? `${data.currentProperty.address}` : 'Not allocated'}
+              {data?.currentProperty ? data.currentProperty.address : 'Not allocated'}
             </p>
             <p className="text-xs text-gray-500">Current property</p>
           </div>
@@ -74,7 +75,6 @@ export default function ClientDashboard() {
         </div>
       </div>
 
-      {/* Property details */}
       {data?.currentProperty && (
         <div className="card p-6 mb-6">
           <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -82,10 +82,10 @@ export default function ClientDashboard() {
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             {[
-              ['Address', `${data.currentProperty.address}, ${data.currentProperty.suburb}`],
-              ['State', data.currentProperty.state],
-              ['Type', data.currentProperty.property_type],
-              ['Move-in Date', data.moveInDate ? format(new Date(data.moveInDate), 'dd MMM yyyy') : '—'],
+              ['Address',    data.currentProperty.address],
+              ['Town / City', data.currentProperty.town_city],
+              ['Type',       data.currentProperty.property_type],
+              ['Move-in',    fmtDate(data.move_in_date)],
             ].map(([l, v]) => (
               <div key={l}><p className="text-gray-500">{l}</p><p className="font-medium text-gray-900">{v}</p></div>
             ))}
@@ -93,7 +93,6 @@ export default function ClientDashboard() {
         </div>
       )}
 
-      {/* Recent tickets */}
       <div className="card">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">Recent Tickets</h2>
@@ -102,7 +101,7 @@ export default function ClientDashboard() {
           </Link>
         </div>
         <div className="divide-y divide-gray-100">
-          {data?.recentTickets?.length === 0 && (
+          {(!data?.recentTickets || data.recentTickets.length === 0) && (
             <div className="px-6 py-10 text-center">
               <Ticket className="w-10 h-10 text-gray-200 mx-auto mb-3" />
               <p className="text-gray-500 text-sm">No tickets yet</p>
@@ -116,7 +115,7 @@ export default function ClientDashboard() {
               className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
               <div>
                 <p className="font-medium text-gray-900 text-sm">{t.title}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{format(new Date(t.created_at), 'dd MMM yyyy')}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{fmtDate(t.created_at)}</p>
               </div>
               <div className="flex items-center gap-2">
                 {statusBadge(t.priority)}

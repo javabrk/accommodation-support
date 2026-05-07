@@ -1,14 +1,16 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { clientAPI } from '@/lib/api';
-import { Ticket } from '@/types';
 import { statusBadge } from '@/components/ui/Badge';
 import { Plus, Ticket as TicketIcon } from 'lucide-react';
 import Link from 'next/link';
-import { format } from 'date-fns';
+
+const fmtDate = (d?: string) => { if (!d) return ''; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return ''; } };
+
+interface TicketRow { id: string; title: string; category: string; priority: string; status: string; created_at: string; updated_at: string; }
 
 export default function ClientTicketsPage() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [tickets, setTickets] = useState<TicketRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
 
@@ -71,8 +73,8 @@ export default function ClientTicketsPage() {
                 </div>
                 <p className="font-semibold text-gray-900">{t.title}</p>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  Opened {format(new Date(t.createdAt), 'dd MMM yyyy')}
-                  {t.updatedAt !== t.createdAt ? ` · Updated ${format(new Date(t.updatedAt), 'dd MMM')}` : ''}
+                  Opened {fmtDate(t.created_at)}
+                  {t.updated_at !== t.created_at ? ` · Updated ${fmtDate(t.updated_at)}` : ''}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">

@@ -2,17 +2,25 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { clientAPI } from '@/lib/api';
-import { Ticket } from '@/types';
 import { statusBadge } from '@/components/ui/Badge';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Send } from 'lucide-react';
-import { format } from 'date-fns';
 import { getUser } from '@/lib/auth';
+
+const fmtDate = (d?: string) => { if (!d) return ''; try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return ''; } };
+const fmtDateTime = (d?: string) => { if (!d) return ''; try { return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
+
+interface Message { id: string; message: string; sender_name?: string; sender_role?: string; is_internal?: boolean; created_at: string; }
+interface TicketDetail {
+  id: string; title: string; description: string; category: string;
+  priority: string; status: string; created_at: string; updated_at: string;
+  resolved_at?: string; messages?: Message[];
+}
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
@@ -59,11 +67,10 @@ export default function TicketDetailPage() {
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-gray-900 truncate">{ticket.title}</h1>
-          <p className="text-sm text-gray-500 mt-0.5 capitalize">{ticket.category} · Opened {format(new Date(ticket.createdAt), 'dd MMM yyyy')}</p>
+          <p className="text-sm text-gray-500 mt-0.5 capitalize">{ticket.category} · Opened {fmtDate(ticket.created_at)}</p>
         </div>
       </div>
 
-      {/* Status bar */}
       <div className="card p-4 mb-5 flex flex-wrap gap-3 items-center">
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 font-medium">Status</span>
@@ -73,14 +80,13 @@ export default function TicketDetailPage() {
           <span className="text-xs text-gray-500 font-medium">Priority</span>
           {statusBadge(ticket.priority)}
         </div>
-        {ticket.resolvedAt && (
+        {ticket.resolved_at && (
           <div className="ml-auto text-xs text-gray-400">
-            Resolved {format(new Date(ticket.resolvedAt), 'dd MMM yyyy')}
+            Resolved {fmtDate(ticket.resolved_at)}
           </div>
         )}
       </div>
 
-      {/* Original message */}
       <div className="card p-5 mb-5">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 text-sm font-medium">
@@ -88,32 +94,31 @@ export default function TicketDetailPage() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-900">{user?.firstName} {user?.lastName} <span className="text-gray-400 font-normal">(You)</span></p>
-            <p className="text-xs text-gray-400">{format(new Date(ticket.createdAt), 'dd MMM yyyy HH:mm')}</p>
+            <p className="text-xs text-gray-400">{fmtDateTime(ticket.created_at)}</p>
           </div>
         </div>
         <p className="text-sm text-gray-700 whitespace-pre-line pl-10">{ticket.description}</p>
       </div>
 
-      {/* Conversation */}
       {ticket.messages && ticket.messages.length > 0 && (
         <div className="space-y-4 mb-5">
           {ticket.messages.map((m) => {
-            const isMe = m.senderRole === 'client';
+            const isMe = m.sender_role === 'client';
             return (
               <div key={m.id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0 ${
                   isMe ? 'bg-teal-100 text-teal-700' : 'bg-primary-100 text-primary-700'
                 }`}>
-                  {m.senderName?.[0]}
+                  {m.sender_name?.[0]}
                 </div>
                 <div className={`max-w-[80%] rounded-xl p-3.5 text-sm ${
                   isMe ? 'bg-teal-50 text-gray-800' : 'bg-white border border-gray-200 text-gray-800'
                 }`}>
                   <p className="text-xs font-medium text-gray-500 mb-1">
-                    {m.senderName} {isMe ? '(You)' : '· Support Staff'}
+                    {m.sender_name} {isMe ? '(You)' : '· Support Staff'}
                   </p>
                   <p className="whitespace-pre-line">{m.message}</p>
-                  <p className="text-xs text-gray-400 mt-2">{format(new Date(m.createdAt), 'dd MMM HH:mm')}</p>
+                  <p className="text-xs text-gray-400 mt-2">{fmtDateTime(m.created_at)}</p>
                 </div>
               </div>
             );
@@ -121,17 +126,11 @@ export default function TicketDetailPage() {
         </div>
       )}
 
-      {/* Reply box */}
       {!isClosed ? (
         <form onSubmit={handleReply} className="card p-5">
           <label className="block text-sm font-medium text-gray-700 mb-2">Add a reply</label>
-          <textarea
-            className="input-field mb-3"
-            rows={4}
-            placeholder="Type your message here…"
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-          />
+          <textarea className="input-field mb-3" rows={4} placeholder="Type your message here…"
+            value={reply} onChange={(e) => setReply(e.target.value)} />
           <div className="flex justify-end">
             <button type="submit" className="btn-primary flex items-center gap-2" disabled={sending || !reply.trim()}>
               <Send className="w-4 h-4" /> {sending ? 'Sending…' : 'Send Reply'}
