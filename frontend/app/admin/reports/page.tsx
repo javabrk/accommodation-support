@@ -1,27 +1,46 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { adminAPI } from '@/lib/api';
-import { Report } from '@/types';
 import Modal from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
 import { Plus, Edit, FileText, Lock } from 'lucide-react';
-import { format } from 'date-fns';
+
+interface Report {
+  id: string;
+  title: string;
+  content: string;
+  report_type: string;
+  is_confidential: boolean;
+  client_id?: string;
+  client_name?: string;
+  created_by_name: string;
+  created_at: string;
+}
+interface ClientOption { id: string; client_id: string; first_name: string; last_name: string; }
 
 const emptyForm = {
   clientId: '', title: '', content: '', reportType: 'case_note', isConfidential: false,
 };
 
-interface ClientOption { id: string; client_id: string; first_name: string; last_name: string; }
+const reportTypeLabel: Record<string, string> = {
+  case_note: 'Case Note', incident: 'Incident', progress: 'Progress',
+  assessment: 'Assessment', exit: 'Exit', other: 'Other',
+};
+
+const fmtDate = (d: string) => {
+  try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+  catch { return '—'; }
+};
 
 export default function ReportsPage() {
-  const [reports, setReports] = useState<Report[]>([]);
-  const [clients, setClients] = useState<ClientOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [reports, setReports]     = useState<Report[]>([]);
+  const [clients, setClients]     = useState<ClientOption[]>([]);
+  const [loading, setLoading]     = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [viewReport, setViewReport] = useState<Report | null>(null);
   const [editTarget, setEditTarget] = useState<Report | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
+  const [form, setForm]           = useState(emptyForm);
+  const [saving, setSaving]       = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -42,11 +61,11 @@ export default function ReportsPage() {
   const openEdit = (r: Report) => {
     setEditTarget(r);
     setForm({
-      clientId: r.clientId || '',
+      clientId: r.client_id || '',
       title: r.title,
       content: r.content,
-      reportType: r.reportType,
-      isConfidential: r.isConfidential,
+      reportType: r.report_type,
+      isConfidential: r.is_confidential,
     });
     setViewReport(null);
     setModalOpen(true);
@@ -67,11 +86,6 @@ export default function ReportsPage() {
       load();
     } catch { toast.error('Failed to save report'); }
     finally { setSaving(false); }
-  };
-
-  const reportTypeLabel: Record<string, string> = {
-    case_note: 'Case Note', incident: 'Incident', progress: 'Progress',
-    assessment: 'Assessment', exit: 'Exit', other: 'Other',
   };
 
   return (
@@ -98,20 +112,22 @@ export default function ReportsPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading && <tr><td colSpan={6} className="text-center py-12 text-gray-400">Loading…</td></tr>}
-              {!loading && reports.length === 0 && <tr><td colSpan={6} className="text-center py-12 text-gray-400">No reports yet</td></tr>}
+              {!loading && reports.length === 0 && (
+                <tr><td colSpan={6} className="text-center py-12 text-gray-400">No reports yet</td></tr>
+              )}
               {reports.map((r) => (
                 <tr key={r.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setViewReport(r)}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       <span className="font-medium text-gray-900 truncate max-w-xs">{r.title}</span>
-                      {r.isConfidential && <Lock className="w-3.5 h-3.5 text-red-400" />}
+                      {r.is_confidential && <Lock className="w-3.5 h-3.5 text-red-400" />}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{r.clientName || '—'}</td>
-                  <td className="px-4 py-3 text-gray-600">{reportTypeLabel[r.reportType] || r.reportType}</td>
-                  <td className="px-4 py-3 text-gray-600">{r.createdByName}</td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{format(new Date(r.createdAt), 'dd MMM yyyy')}</td>
+                  <td className="px-4 py-3 text-gray-600">{r.client_name || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">{reportTypeLabel[r.report_type] || r.report_type}</td>
+                  <td className="px-4 py-3 text-gray-600">{r.created_by_name}</td>
+                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmtDate(r.created_at)}</td>
                   <td className="px-4 py-3">
                     <button onClick={(e) => { e.stopPropagation(); openEdit(r); }}
                       className="text-primary-600 hover:text-primary-800">
@@ -131,15 +147,15 @@ export default function ReportsPage() {
           <div className="space-y-4">
             <div className="flex flex-wrap gap-4 text-sm">
               {[
-                ['Type', reportTypeLabel[viewReport.reportType]],
-                ['Client', viewReport.clientName || '—'],
-                ['Author', viewReport.createdByName],
-                ['Date', format(new Date(viewReport.createdAt), 'dd MMM yyyy HH:mm')],
+                ['Type',   reportTypeLabel[viewReport.report_type] || viewReport.report_type],
+                ['Client', viewReport.client_name || '—'],
+                ['Author', viewReport.created_by_name],
+                ['Date',   fmtDate(viewReport.created_at)],
               ].map(([l, v]) => (
                 <div key={l}><p className="text-gray-500 text-xs font-medium">{l}</p><p className="text-gray-900">{v}</p></div>
               ))}
             </div>
-            {viewReport.isConfidential && (
+            {viewReport.is_confidential && (
               <div className="flex items-center gap-2 bg-red-50 text-red-700 text-sm px-3 py-2 rounded-lg">
                 <Lock className="w-4 h-4" /> Confidential Report
               </div>
@@ -175,7 +191,7 @@ export default function ReportsPage() {
               onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Report Type *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Report Type</label>
             <select className="input-field" value={form.reportType}
               onChange={(e) => setForm(prev => ({ ...prev, reportType: e.target.value }))}>
               {Object.entries(reportTypeLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
