@@ -284,17 +284,39 @@ exports.getTicket = async (req, res) => {
 exports.updateTicket = async (req, res) => {
   try {
     const { status, priority, assignedTo } = req.body;
+
+    const validStatuses  = ['open','in_progress','pending_client','resolved','closed'];
+    const validPriorities = ['low','medium','high','urgent'];
+
+    if (!status || !validStatuses.includes(status))
+      return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    if (!priority || !validPriorities.includes(priority))
+      return res.status(400).json({ error: `Invalid priority. Must be one of: ${validPriorities.join(', ')}` });
+
+    // assignedTo: must be null or a UUID of an admin user
+    const assignedToValue = (assignedTo && assignedTo.trim()) ? assignedTo.trim() : null;
+
     const result = await db.query(
-      `UPDATE tickets SET status=$1, priority=$2, assigned_to=$3,
-        resolved_at = CASE WHEN $1 = 'resolved' THEN NOW() ELSE resolved_at END
-       WHERE id=$4 RETURNING *`,
-      [status, priority, assignedTo || null, req.params.id]
+      `UPDATE tickets
+         SET status      = $1,
+             priority    = $2,
+             assigned_to = $3,
+             resolved_at = CASE WHEN $1 = 'resolved' AND resolved_at IS NULL THEN NOW()
+                                WHEN $1 NOT IN ('resolved','closed') THEN NULL
+                                ELSE resolved_at END
+       WHERE id = $4
+       RETURNING *`,
+      [status, priority, assignedToValue, req.params.id]
     );
+
     if (!result.rows[0]) return res.status(404).json({ error: 'Ticket not found' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('updateTicket error:', err.message);
+    // Surface FK violation clearly
+    if (err.code === '23503') return res.status(400).json({ error: 'Assigned user does not exist' });
+    if (err.code === '23514') return res.status(400).json({ error: 'Invalid status or priority value' });
+    res.status(500).json({ error: err.message || 'Server error' });
   }
 };
 
